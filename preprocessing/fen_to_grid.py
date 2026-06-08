@@ -14,7 +14,7 @@ Class encoding (project spec, 13 classes total, no 'occluded' for synthetic):
 """
 import numpy as np
 
-from scripts.view_orientations import apply_orientation
+from preprocessing.view_orientations import apply_orientation
 
 
 PIECE_TO_CLASS = {

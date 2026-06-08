@@ -29,7 +29,7 @@ import torch
 from torch.utils.data import Dataset
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.verify_woelflein_crops import warp_chessboard_image, crop_square
+from preprocessing.verify_woelflein_crops import warp_chessboard_image, crop_square
 
 
 DEFAULT_DATASET_DIR = Path(

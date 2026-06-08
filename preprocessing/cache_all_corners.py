@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.verify_woelflein_crops import find_corners, ChessboardNotLocatedException
+from preprocessing.verify_woelflein_crops import find_corners, ChessboardNotLocatedException
 
 
 # --------------------------------------------------------------------------

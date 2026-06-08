@@ -7,9 +7,9 @@ import csv
 import cv2, numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from scripts.fen_to_grid import fen_to_label_grid
-import scripts.verify_woelflein_crops as V
-from scripts.verify_woelflein_crops import (warp_chessboard_image, crop_square,
+from preprocessing.fen_to_grid import fen_to_label_grid
+import preprocessing.verify_woelflein_crops as V
+from preprocessing.verify_woelflein_crops import (warp_chessboard_image, crop_square,
     find_corners, ChessboardNotLocatedException)
 ROOT="/home/eladbaum/chess_project"; OUT=f"{ROOT}/fine_tuning/stage3_improved/plots"
 CLASS=["wP","wR","wN","wB","wQ","wK","bP","bR","bN","bB","bQ","bK","·"]

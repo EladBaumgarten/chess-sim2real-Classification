@@ -55,9 +55,9 @@ import matplotlib
 matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 
-from scripts.chess_dataset import ChessSquareDataset
-from scripts.fen_to_grid import fen_to_label_grid
-from scripts.verify_woelflein_crops import (
+from preprocessing.chess_dataset import ChessSquareDataset
+from preprocessing.fen_to_grid import fen_to_label_grid
+from preprocessing.verify_woelflein_crops import (
     warp_chessboard_image, crop_square, find_corners, ChessboardNotLocatedException,
 )
 # Verbatim games-2/6 eval harness (the one that reproduced ResNet s00's 0.9085 exactly).

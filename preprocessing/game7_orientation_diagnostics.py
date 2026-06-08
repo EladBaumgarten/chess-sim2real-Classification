@@ -29,7 +29,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.verify_woelflein_crops import (
+from preprocessing.verify_woelflein_crops import (
     SQUARE_SIZE, BOARD_SIZE, warp_chessboard_image,
     find_corners, ChessboardNotLocatedException,
 )

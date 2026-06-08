@@ -7,8 +7,8 @@ import csv
 import cv2, numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import scripts.verify_woelflein_crops as V
-from scripts.verify_woelflein_crops import sort_corner_points, find_corners, ChessboardNotLocatedException
+import preprocessing.verify_woelflein_crops as V
+from preprocessing.verify_woelflein_crops import sort_corner_points, find_corners, ChessboardNotLocatedException
 ROOT="/home/eladbaum/chess_project"; OUT=f"{ROOT}/fine_tuning/stage3_improved/plots"
 S=V.SQUARE_SIZE; B=V.BOARD_SIZE; I=V.IMG_SIZE   # 50, 400, 500
 EXTRA_TOP=200   # extra px of far-side margin to reveal (4 squares)

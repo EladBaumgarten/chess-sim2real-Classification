@@ -32,7 +32,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/scripts")
+sys.path.insert(0, "/home/eladbaum/chess_project/preprocessing")
 from verify_woelflein_crops import (
     warp_chessboard_image, crop_square,
     find_corners, ChessboardNotLocatedException,

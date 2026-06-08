@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.verify_woelflein_crops import find_corners, ChessboardNotLocatedException
+from preprocessing.verify_woelflein_crops import find_corners, ChessboardNotLocatedException
 
 
 # --------------------------------------------------------------------------
@@ -38,8 +38,8 @@ V1_5_DIR = Path("/home/eladbaum/chess_project/data/dataset_v1.5")
 IMAGES_DIR = V1_5_DIR / "images"
 LABELS_CSV = V1_5_DIR / "labels.csv"
 
-EXISTING_CORNERS = Path("/home/eladbaum/chess_project/scripts/corners.json")
-EXISTING_LOG = Path("/home/eladbaum/chess_project/scripts/corner_detection_log.csv")
+EXISTING_CORNERS = Path("/home/eladbaum/chess_project/preprocessing/corners.json")
+EXISTING_LOG = Path("/home/eladbaum/chess_project/preprocessing/corner_detection_log.csv")
 
 OUT_JSON = V1_5_DIR / "corners.json"
 OUT_FALLBACK = V1_5_DIR / "fallback_corners.json"

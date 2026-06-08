@@ -50,8 +50,8 @@ matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 
 # Project modules (no synthetic-data imports — ChessSquareDataset intentionally not imported)
-from scripts.fen_to_grid import fen_to_label_grid
-from scripts.verify_woelflein_crops import (
+from preprocessing.fen_to_grid import fen_to_label_grid
+from preprocessing.verify_woelflein_crops import (
     warp_chessboard_image, crop_square,
     find_corners, ChessboardNotLocatedException,
 )

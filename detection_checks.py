@@ -14,14 +14,14 @@ import csv
 from pathlib import Path
 
 # Project modules
-from scripts.fen_to_grid import fen_to_label_grid
-from scripts.verify_woelflein_crops import (
+from preprocessing.fen_to_grid import fen_to_label_grid
+from preprocessing.verify_woelflein_crops import (
     warp_chessboard_image, crop_square,
     find_corners, ChessboardNotLocatedException,
 )
 
 # --- Configuration ------------------------------------------------------------
-SYNTH_MANIFEST = "/home/eladbaum/chess_project/scripts/manifest.csv"
+SYNTH_MANIFEST = "/home/eladbaum/chess_project/preprocessing/manifest.csv"
 SYNTH_IMAGES_DIR = "/home/eladbaum/chess_project/data/dataset_v1/images"
 REAL_GT_CSV = "/home/eladbaum/chess_project/data/game7_per_frame/gt.csv"
 REAL_IMAGES_DIR = "/home/eladbaum/chess_project/data/game7_per_frame/images"

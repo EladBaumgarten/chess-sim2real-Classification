@@ -32,7 +32,7 @@ from pathlib import Path
 # fen_to_grid imports from `scripts.view_orientations`, so add the project root
 # (parent of `scripts/`) to sys.path so the dotted import resolves.
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/scripts")
+sys.path.insert(0, "/home/eladbaum/chess_project/preprocessing")
 from fen_to_grid import fen_to_label_grid
 
 

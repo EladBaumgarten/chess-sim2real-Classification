@@ -22,7 +22,7 @@ import torch
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.chess_dataset import ChessSquareDataset
+from preprocessing.chess_dataset import ChessSquareDataset
 
 
 MANIFEST = "/home/eladbaum/chess_project/manifest.csv"

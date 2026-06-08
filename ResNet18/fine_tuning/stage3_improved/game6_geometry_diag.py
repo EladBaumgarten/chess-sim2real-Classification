@@ -14,7 +14,7 @@ import sys; sys.path.insert(0, "/home/eladbaum/chess_project")
 import csv
 import numpy as np
 import pandas as pd
-from scripts.fen_to_grid import fen_to_label_grid
+from preprocessing.fen_to_grid import fen_to_label_grid
 
 ROOT="/home/eladbaum/chess_project"; PRED=f"{ROOT}/fine_tuning/stage3_323/results/predictions"
 CLASS=["wP","wR","wN","wB","wQ","wK","bP","bR","bN","bB","bQ","bK","empty"]

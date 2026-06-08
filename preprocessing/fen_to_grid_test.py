@@ -13,7 +13,7 @@ Run:   /home/eladbaum/.conda/envs/chess/bin/python fen_to_grid_test.py
 """
 import numpy as np
 
-from scripts.fen_to_grid import EMPTY_CLASS, fen_to_label_grid
+from preprocessing.fen_to_grid import EMPTY_CLASS, fen_to_label_grid
 
 
 # Convenience name aliases (project class encoding 0-11; 12 = empty)

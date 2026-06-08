@@ -8,8 +8,8 @@ only), then report accuracy {macro, piece-only, per-square, per-class + tall del
 import json, csv, numpy as np, cv2, torch, torch.nn as nn
 import torchvision.transforms as T
 import sys; sys.path.insert(0, "/home/eladbaum/chess_project")
-from scripts.fen_to_grid import fen_to_label_grid
-from scripts.verify_woelflein_crops import (warp_chessboard_image, crop_square, find_corners,
+from preprocessing.fen_to_grid import fen_to_label_grid
+from preprocessing.verify_woelflein_crops import (warp_chessboard_image, crop_square, find_corners,
                                             ChessboardNotLocatedException)
 
 NAMES = ["wP", "wR", "wN", "wB", "wQ", "wK", "bP", "bR", "bN", "bB", "bQ", "bK", "empty"]

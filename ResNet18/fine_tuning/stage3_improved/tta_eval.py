@@ -26,8 +26,8 @@ from torchvision.models import resnet18
 import torchvision.transforms.functional as TF
 from PIL import Image
 
-from scripts.fen_to_grid import fen_to_label_grid
-from scripts.verify_woelflein_crops import (
+from preprocessing.fen_to_grid import fen_to_label_grid
+from preprocessing.verify_woelflein_crops import (
     warp_chessboard_image, crop_square, find_corners, ChessboardNotLocatedException)
 
 PROJECT_ROOT = "/home/eladbaum/chess_project"
