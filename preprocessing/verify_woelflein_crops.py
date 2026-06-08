@@ -1,34 +1,16 @@
-"""
-verify_woelflein_crops.py — verification of the chesscog pipeline (Wölflein
-& Arandjelović 2021, J. Imaging) on 3 dataset_v1 samples (one per view).
+"""Verify the chesscog pipeline (Wölflein & Arandjelović 2021, J. Imaging)
+on 3 dataset_v1 samples (one per view), writing diagnostic images.
 
-Source: https://github.com/georg-wolflein/chesscog (MIT)
-Ported, with inline config values (no recap dependency), from:
-  chesscog/corner_detection/detect_corners.py    →  find_corners()
-  chesscog/occupancy_classifier/create_dataset.py →  warp_chessboard_image(),
-                                                      crop_square()
-  config/corner_detection.yaml                    →  CFG dict below
-  chesscog/core/__init__.py                       →  sort_corner_points()
-  chesscog/core/coordinates.py                    →  to/from_homogenous_*()
+Source: https://github.com/georg-wolflein/chesscog (MIT). Ported, with inline
+config (no recap dependency), from:
+  chesscog/corner_detection/detect_corners.py     → find_corners()
+  chesscog/occupancy_classifier/create_dataset.py → warp_chessboard_image(), crop_square()
+  config/corner_detection.yaml                    → CFG dict
+  chesscog/core/__init__.py                       → sort_corner_points()
+  chesscog/core/coordinates.py                    → to/from_homogenous_*()
 
-Pipeline (exactly matching chesscog):
-  1. find_corners(img) — Canny edges → Hough lines → agglomerative cluster
-     into horiz/vert → DBSCAN dedup → RANSAC homography of grid intersections
-     → Sobel border refinement → 4 outer corner coords.
-  2. warp_chessboard_image(img, corners) — perspective warp to IMG_SIZE×IMG_SIZE
-     = 500×500 with the 8×8 board at the inner [50..450, 50..450] region.
-     SQUARE_SIZE = 50 px in warped space.
-  3. crop_square(warped, square, turn) — for each board square, extract a
-     100×100 (= 2×2 squares) patch centered on the target square. The
-     50-px padding around the board provides real content for the
-     overhang on every side, so kings/queens are captured without
-     clipping in any view direction.
-
-Outputs (./results/verify_woelflein/):
-  {view}_original_with_corners.png — original + 4 detected corners + outline
-  {view}_warped.png                — 500×500 warped board
-  {view}_warped_with_grid.png      — warped image with 8×8 board grid
-  {view}_crops.png                 — 64 crops in 8×8 layout, row 0 = top
+find_corners → warp to 500×500 (board at inner [50..450]) → 100×100 crops
+(2×2 squares centered on each square; the 50-px pad captures piece overhang).
 """
 
 from pathlib import Path
@@ -41,15 +23,10 @@ from sklearn.cluster import AgglomerativeClustering, DBSCAN
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-# --------------------------------------------------------------------------
-# Config — flattened from chesscog's config/corner_detection.yaml
-# EDGE_DETECTION thresholds retuned for our 512×512 synthetic renders
-# (chesscog's defaults LOW=90/HIGH=400 produce zero Canny edges on our
-# smooth synthetic gradients after upscale-to-1200; LOW=30/HIGH=90
-# yields the line counts chesscog's RANSAC expects, ~40–200 lines/img).
-# Everything else — algorithm structure, RANSAC, border refinement,
-# DBSCAN/agglomerative clustering — is left at chesscog defaults.
-# --------------------------------------------------------------------------
+# Flattened from chesscog's config/corner_detection.yaml. Only the Canny
+# thresholds are retuned (LOW=30/HIGH=90 vs chesscog's 90/400): our smooth
+# synthetic gradients yield zero edges at the defaults. Everything else is
+# chesscog default.
 CFG = {
     "RESIZE_IMAGE_WIDTH": 1200,
     "EDGE_DETECTION": {
@@ -83,23 +60,17 @@ CFG = {
     "RANSAC_OFFSET_TOLERANCE": 0.1,
 }
 
-# Warp / crop constants — from chesscog create_dataset.py
+# Warp/crop constants — from chesscog create_dataset.py.
 SQUARE_SIZE = 50
 BOARD_SIZE = 8 * SQUARE_SIZE       # 400
 IMG_SIZE = BOARD_SIZE + 2 * SQUARE_SIZE  # 500 — board at inner [50..450]
 
 
-# --------------------------------------------------------------------------
-# Paths
-# --------------------------------------------------------------------------
 DATASET_DIR = Path("/home/eladbaum/chess_project/syn_data_generation/dataset_v1/images")
 RESULTS_DIR = Path("/home/eladbaum/chess_project/results/verify_woelflein_midgame")
 RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 
-# Mid-game samples (drawn from check_detector_robustness.py successes):
-#   overhead fen_0352: endgame  8/2R5/3r4/1B3p2/P7/1kp3P1/5K2/8
-#   west     fen_0118: 1r3rk1/p3ppbp/6p1/4P3/3B4/4R3/Pn1N1PPP/R5K1
-#   east     fen_0299: r4rk1/5p1p/3p2p1/q1pPbp2/7P/4P1P1/P1R1QPB1/3R2K1
+# Mid/endgame samples drawn from known detector successes.
 SAMPLES = {
     "overhead": DATASET_DIR / "fen_0352_r3_1_overhead.png",
     "west":     DATASET_DIR / "fen_0118_r3_2_west.png",
@@ -107,9 +78,7 @@ SAMPLES = {
 }
 
 
-# ==========================================================================
 # Ported from chesscog/core/coordinates.py
-# ==========================================================================
 def to_homogenous_coordinates(coords):
     return np.concatenate(
         [coords, np.ones((*coords.shape[:-1], 1))], axis=-1)
@@ -119,9 +88,7 @@ def from_homogenous_coordinates(coords):
     return coords[..., :2] / coords[..., 2, np.newaxis]
 
 
-# ==========================================================================
 # Ported from chesscog/core/__init__.py
-# ==========================================================================
 def sort_corner_points(points: np.ndarray) -> np.ndarray:
     """Order corners as [TL, TR, BR, BL] by image position."""
     points = points[points[:, 1].argsort()]
@@ -130,9 +97,7 @@ def sort_corner_points(points: np.ndarray) -> np.ndarray:
     return points
 
 
-# ==========================================================================
 # Ported from chesscog/corner_detection/detect_corners.py
-# ==========================================================================
 class ChessboardNotLocatedException(Exception):
     pass
 
@@ -190,9 +155,8 @@ def _sort_lines(lines):
 def _cluster_horizontal_and_vertical_lines(lines):
     lines = _sort_lines(lines)
     thetas = lines[..., 1].reshape(-1, 1)
-    # chesscog uses sklearn.pairwise_distances with a Python callable, which
-    # broke in newer sklearn (returns 1-element arrays not scalars). Inline
-    # the same metric vectorised — output is identical.
+    # Vectorised inline of chesscog's pairwise_distances metric (its Python
+    # callable broke on newer sklearn); output is identical.
     t = thetas.ravel()
     d = np.abs(t[:, None] - t[None, :]) % (2 * np.pi)
     distance_matrix = np.minimum(d, np.pi - d)
@@ -373,7 +337,7 @@ def _compute_horizontal_borders(warped, mask, scale, ymin, ymax):
 
 
 def find_corners(img_bgr):
-    """chesscog's find_corners ported verbatim. Expects BGR input."""
+    """Ported verbatim from chesscog. Expects BGR input."""
     img, img_scale = _resize_image(img_bgr)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     edges = _detect_edges(CFG["EDGE_DETECTION"], gray)
@@ -432,12 +396,10 @@ def find_corners(img_bgr):
     return sort_corner_points(img_corners)
 
 
-# ==========================================================================
 # Ported from chesscog/occupancy_classifier/create_dataset.py
-# ==========================================================================
 def warp_chessboard_image(img: np.ndarray, corners: np.ndarray) -> np.ndarray:
-    """Verbatim from chesscog. img: H×W×3 (any channel order). corners:
-    (4, 2) in TL/TR/BR/BL order. Returns IMG_SIZE × IMG_SIZE warped board."""
+    """Ported verbatim from chesscog. corners: (4, 2) TL/TR/BR/BL.
+    Returns an IMG_SIZE × IMG_SIZE warped board."""
     src = sort_corner_points(corners.astype(np.float32))
     dst = np.array(
         [[SQUARE_SIZE, SQUARE_SIZE],
@@ -451,17 +413,13 @@ def warp_chessboard_image(img: np.ndarray, corners: np.ndarray) -> np.ndarray:
 
 
 def crop_square(img: np.ndarray, row: int, col: int) -> np.ndarray:
-    """Crop a 2×2-square (100×100 px) patch centered on board square (row, col).
-    Verbatim slicing from chesscog/occupancy_classifier/create_dataset.py
-    crop_square, but indexed by (row, col) directly instead of via
-    chess.Square+chess.Color (we just want every square in row-major order)."""
+    """Crop a 100×100 (2×2-square) patch centered on board square (row, col).
+    chesscog crop_square slicing, indexed by (row, col) directly rather than
+    chess.Square+chess.Color."""
     return img[int(SQUARE_SIZE * (row + 0.5)): int(SQUARE_SIZE * (row + 2.5)),
                int(SQUARE_SIZE * (col + 0.5)): int(SQUARE_SIZE * (col + 2.5))]
 
 
-# ==========================================================================
-# Diagnostics
-# ==========================================================================
 def _load_font(size=10):
     for p in [
         "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
@@ -496,10 +454,8 @@ def save_warped_with_grid(warped_rgb, out_path):
     im = Image.fromarray(warped_rgb).copy()
     draw = ImageDraw.Draw(im)
     font = _load_font(9)
-    # Padded-frame outline
     draw.rectangle([0, 0, IMG_SIZE - 1, IMG_SIZE - 1],
                    outline=(255, 0, 200), width=1)
-    # 8x8 board grid
     for i in range(9):
         x = SQUARE_SIZE + i * SQUARE_SIZE
         y = SQUARE_SIZE + i * SQUARE_SIZE
@@ -528,9 +484,6 @@ def save_crops_grid(crops, out_path, pad=2):
     Image.fromarray(canvas).save(out_path)
 
 
-# ==========================================================================
-# Per-view processing
-# ==========================================================================
 def process(view, image_path):
     print(f"\n=== {view} ===")
     print(f"image: {image_path}")
@@ -538,7 +491,6 @@ def process(view, image_path):
         print("  MISSING — skipped")
         return
 
-    # chesscog uses cv2.imread → BGR
     bgr = cv2.imread(str(image_path))
     rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
     print(f"shape: {bgr.shape}")
@@ -555,7 +507,6 @@ def process(view, image_path):
     for lbl, (x, y) in zip(["TL", "TR", "BR", "BL"], corners):
         print(f"  {lbl}: ({x:.1f}, {y:.1f})")
 
-    # Warp uses BGR; we'll save it as RGB for diagnostics
     warped_bgr = warp_chessboard_image(bgr, corners)
     warped_rgb = cv2.cvtColor(warped_bgr, cv2.COLOR_BGR2RGB)
     print(f"warped shape: {warped_rgb.shape}  (board at [{SQUARE_SIZE}..{SQUARE_SIZE + BOARD_SIZE}])")

@@ -1,18 +1,6 @@
-"""Comprehensive mechanical audit of dataset_v1.
-
-Runs 7 categories of checks across every row of labels.csv (and every PNG on
-disk), then writes audit_report.txt with PASS/FAIL per check plus detailed
-diagnostics. No per-image visualization — only mechanical/statistical
-verification. The 10-sample visual check from sanity_check_samples.py is
-orthogonal to this.
-
-Usage:
-    python audit_dataset_v1.py
-
-Outputs:
-    audit_report.txt                          single-file report
-    audit_dataset_v1_grid_dumps.txt           50 stratified FEN grid dumps
-"""
+"""Mechanical audit of dataset_v1: 7 categories of statistical checks over
+labels.csv and every PNG, written to audit_report.txt (PASS/FAIL per check)
+plus 50 stratified FEN grid dumps."""
 
 import csv
 import re
@@ -33,18 +21,16 @@ IMAGES_DIR = DATASET_DIR / "images"
 REPORT_TXT = PROJECT_DIR / "audit_report.txt"
 GRID_DUMPS_TXT = PROJECT_DIR / "audit_dataset_v1_grid_dumps.txt"
 
-# Diagnostic images live in images/ but are NOT part of the dataset proper
-# (they're produced by sanity_check_samples.py for camera/xform verification).
-# Excluded from orphan check.
+# Diagnostic renders (sanity_check_samples.py); not dataset rows, excluded from
+# the orphan check.
 DIAGNOSTIC_PREFIX = "fen_diag_"
 
 EXPECTED_IMG_SIZE = (512, 512)
 DEAD_STD_THRESHOLD = 5.0       # std below this = effectively dead image
 DARK_MEAN_THRESHOLD = 20.0     # mean below this on 0..255 = render likely broken
-HDRI_VARIANCE_TOLERANCE = 0.01  # fraction; if all 12 within ±1% of mean = HDRI bug
+HDRI_VARIANCE_TOLERANCE = 0.01  # if all 12 within ±1% of mean = HDRI bug
 
-# Per-camera FEN-grid transform (calibrated empirically; see VIEW_TRANSFORMS
-# in sanity_check_samples.py).
+# Per-camera FEN-grid transform (calibrated empirically).
 VIEW_TRANSFORMS = {
     "1_overhead": "rot180",
     "2_west":     "rot180",
@@ -60,16 +46,13 @@ NUM_CLASSES = 13
 VALID_PIECE_CHARS = set("PRNBQKprnbqk")
 
 
-# ----------------------------------------------------------------------
-# FEN parsing + grid utilities
-# ----------------------------------------------------------------------
 def fen_piece_count(fen_board):
     return sum(1 for c in fen_board if c.isalpha())
 
 
 def validate_fen(fen):
-    """Return (ok, payload). On success payload is the 8x8 char grid
-    (white POV, grid[0]=rank 8). On failure payload is a short reason."""
+    """Return (ok, payload): on success the 8x8 char grid (white POV,
+    grid[0]=rank 8), on failure a short reason."""
     if not isinstance(fen, str) or not fen.strip():
         return False, "empty/non-string FEN"
     board = fen.split()[0]
@@ -138,9 +121,7 @@ def format_grid(char_grid):
     return "\n".join(lines)
 
 
-# ----------------------------------------------------------------------
-# Image analysis (run in thread pool — I/O bound)
-# ----------------------------------------------------------------------
+# Image analysis (run in thread pool — I/O bound).
 def analyze_image(path):
     """Return dict of stats or {'ok': False, 'error': ...}."""
     try:
@@ -161,9 +142,7 @@ def analyze_image(path):
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
-# ----------------------------------------------------------------------
-# "Unusual" FEN selection for grid dumps
-# ----------------------------------------------------------------------
+# "Unusual" FEN selection for grid dumps.
 def has_double_queen(fen_board):
     return fen_board.count("Q") >= 2 or fen_board.count("q") >= 2
 
@@ -176,7 +155,7 @@ def pawn_on_back_rank(fen_board):
 
 
 def adjacent_kings(fen_board):
-    """Find K and k coords (rank, file) and check Chebyshev distance ≤ 1."""
+    """True if K and k are within Chebyshev distance 1."""
     ranks = fen_board.split("/")
     if len(ranks) != 8:
         return False
@@ -195,12 +174,9 @@ def adjacent_kings(fen_board):
     return max(abs(K_pos[0] - k_pos[0]), abs(K_pos[1] - k_pos[1])) <= 1
 
 
-# ----------------------------------------------------------------------
-# Main audit
-# ----------------------------------------------------------------------
 class Report:
     def __init__(self):
-        self.sections = []   # list of (title, status, body_lines)
+        self.sections = []   # (title, status, body_lines)
         self.failed = False
 
     def section(self, title, status, body_lines):
@@ -241,9 +217,7 @@ def main():
     n_rows = len(df)
     print(f"  rows: {n_rows}")
 
-    # =================================================================
-    # 1. SCHEMA INTEGRITY
-    # =================================================================
+    # 1. Schema integrity
     print("\n[1/7] Schema integrity...")
     body = []
     schema_fail = False
@@ -267,7 +241,6 @@ def main():
         else:
             body.append(f"  {col}: OK (all non-empty)")
 
-    # Image existence
     csv_image_names = df["image_path"].apply(lambda p: Path(p).name).tolist()
     csv_set = set(csv_image_names)
     disk_files = {p.name for p in IMAGES_DIR.iterdir() if p.suffix == ".png"}
@@ -294,13 +267,11 @@ def main():
 
     rep.section("Schema integrity", "FAIL" if schema_fail else "PASS", body)
 
-    # =================================================================
-    # 2. FEN VALIDITY
-    # =================================================================
+    # 2. FEN validity
     print("[2/7] FEN validity...")
     body = []
     fen_fails = []
-    fen_grids = {}  # row idx -> char_grid (cached for check 4)
+    fen_grids = {}  # row idx -> char_grid, cached for check 4
     for i, row in df.iterrows():
         ok, payload = validate_fen(row["fen"])
         if not ok:
@@ -321,9 +292,7 @@ def main():
     rep.section("FEN validity (8 ranks, 8 squares/rank, valid chars, "
                 "1 K + 1 k, total ≤ 32)", fen_status, body)
 
-    # =================================================================
-    # 3. IMAGE INTEGRITY
-    # =================================================================
+    # 3. Image integrity
     print(f"[3/7] Image integrity ({n_rows} images, threaded)...")
     body = []
     t0 = time.perf_counter()
@@ -394,15 +363,13 @@ def main():
         img_status = "FAIL"
     rep.section("Image integrity (open, dims, dead/dark)", img_status, body)
 
-    # =================================================================
-    # 4. FEN ↔ IMAGE CONSISTENCY (per-row parity)
-    # =================================================================
+    # 4. FEN <-> image consistency (per-row empty-count parity)
     print("[4/7] FEN ↔ label parity (per-row, 6132 rows)...")
     body = []
     parity_fails = []
     for i, row in df.iterrows():
         if i not in fen_grids:
-            continue  # skip rows whose FEN failed validation (already flagged in [2])
+            continue  # FEN failed validation; already flagged in [2]
         char_grid = fen_grids[i]
         cam = row["camera"]
         xform = VIEW_TRANSFORMS.get(cam, "identity")
@@ -428,14 +395,11 @@ def main():
     rep.section("FEN <-> image-label consistency (per-row empty-count parity)",
                 parity_status, body)
 
-    # =================================================================
-    # 5. DISTRIBUTION CHECKS
-    # =================================================================
+    # 5. Distribution checks
     print("[5/7] Distribution checks...")
     body = []
     dist_fail = False
 
-    # Per-class square count
     total_squares = 0
     class_counts = np.zeros(NUM_CLASSES, dtype=np.int64)
     for i in fen_grids.keys():
@@ -461,17 +425,15 @@ def main():
         if k != EMPTY_CLASS and cnt < 100:
             dist_fail = True
 
-    # Per-camera distribution
     body.append("")
     cam_counts = df["camera"].value_counts().to_dict()
     body.append(f"Per-camera image counts (expected ~{n_rows // 3} each):")
     for cam, n in sorted(cam_counts.items()):
         body.append(f"  {cam}: {n}")
     cam_imbalance = max(cam_counts.values()) - min(cam_counts.values())
-    if cam_imbalance > n_rows * 0.01:  # >1% imbalance
+    if cam_imbalance > n_rows * 0.01:
         body.append(f"  WARNING: imbalance across cameras = {cam_imbalance}")
 
-    # Per-HDRI distribution
     body.append("")
     hdri_counts = df["hdri"].value_counts().to_dict()
     body.append(f"Per-HDRI image counts (expected ~{n_rows // 4} each):")
@@ -481,12 +443,9 @@ def main():
     if hdri_imbalance > n_rows * 0.05:
         body.append(f"  WARNING: imbalance across HDRIs = {hdri_imbalance}")
 
-    # Duplicate-render detection. The user's original spec was "FEN duplicates
-    # per (cam, hdri)". With --runs-per-fen 4 picking HDRI randomly from 4
-    # files, some FENs end up with the same HDRI *name* across runs, but with
-    # different hdri_rotation_deg/hdri_strength — so the resulting renders
-    # are distinct images. The render-loop-bug signal we actually want is:
-    # are any two rows IDENTICAL in their render parameters? Check both.
+    # Duplicate-render detection. A shared HDRI *name* across runs is expected
+    # (different rotation/strength still yields distinct images); the real
+    # bug signal is two rows identical in all render params. Check both.
     body.append("")
     same_name = df.groupby(["camera", "hdri", "fen"]).size()
     same_name_dup = same_name[same_name > 1]
@@ -507,7 +466,6 @@ def main():
             body.append(f"  {key}: {count} rows")
         dist_fail = True
 
-    # Filename uniqueness
     fn_counts = df["image_path"].apply(lambda p: Path(p).name).value_counts()
     dup_fn = fn_counts[fn_counts > 1]
     body.append(f"Filename uniqueness: {len(dup_fn)} filenames appear >1 time")
@@ -520,9 +478,7 @@ def main():
     rep.section("Distribution checks (class, cam, hdri, dupes, fn-unique)",
                 "FAIL" if dist_fail else "PASS", body)
 
-    # =================================================================
-    # 6. STRATIFIED GRID DUMPS (50 samples → text file)
-    # =================================================================
+    # 6. Stratified grid dumps (50 samples -> text file)
     print("[6/7] Stratified grid dumps (50 samples)...")
     body = []
     rng = np.random.default_rng(2026)
@@ -561,7 +517,6 @@ def main():
 
     body.append(f"Total grid dumps written: {len(selected)} → {GRID_DUMPS_TXT.name}")
 
-    # Write dumps to text file
     dump_lines = []
     dump_lines.append("dataset_v1 stratified grid dumps")
     dump_lines.append(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -586,12 +541,9 @@ def main():
 
     rep.section("Stratified grid dumps (50 samples)", "PASS", body)
 
-    # =================================================================
-    # 7. HDRI VARIANCE
-    # =================================================================
+    # 7. HDRI variance: 5 FENs that have all 12 (cam, hdri) variants present
     print("[7/7] HDRI variance check (5 FENs × 12 variants)...")
     body = []
-    # Pick 5 random FENs that have all 12 (cam, hdri) variants present
     fen_groups = df.groupby("fen_idx")
     full_fens = [f for f, g in fen_groups if len(g) == 12]
     body.append(f"FENs with full 12 (cam, hdri) variants: {len(full_fens)}/{df['fen_idx'].nunique()}")
@@ -604,7 +556,7 @@ def main():
         chosen = rng2.choice(full_fens, size=5, replace=False)
         hdri_fail = False
         body.append("Per-FEN per-render mean-brightness (within ±1% of mean = HDRI broken):")
-        # Reuse the stats computed in section [3], keyed by image name.
+        # Reuse stats from section [3], keyed by image name.
         name_to_stats = {}
         for i in range(n_rows):
             name = Path(df.loc[i, "image_path"]).name
@@ -635,9 +587,6 @@ def main():
         rep.section("HDRI variance (5 FENs × 12 variants brightness check)",
                     "FAIL" if hdri_fail else "PASS", body)
 
-    # =================================================================
-    # WRITE REPORT
-    # =================================================================
     final_body = []
     final_body.append("")
     final_body.append("=" * 72)

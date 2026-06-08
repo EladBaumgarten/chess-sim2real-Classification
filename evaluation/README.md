@@ -81,19 +81,16 @@ built with **no network call** and all weights come from the committed
 
 ## Files
 
-Committed (needed for the grader's `predict_board` call):
-
 | File | Purpose |
 |------|---------|
 | `predict_board.py` | **Required entry point** — `predict_board(image)` + model + preprocessing |
 | `woelflein_crops.py` | Corner detection, warp, per-square crop (chesscog port, MIT) |
 | `dinov2_vendor/` | Vendored DINOv2 ViT-S/14 model code (offline architecture build) |
+| `evaluate.py` | Accuracy check vs ground-truth FENs (reproduces the held-out number) |
+| `fen_to_grid.py`, `view_orientations.py` | FEN → label grid (used by `evaluate.py`) |
 | `requirements.txt` | Dependencies |
 
 Weights: `../checkpoints/dino_combined_Game6boosted/best_real.pt` (committed in the repo's `checkpoints/`).
-
-Local-only validation helpers (gitignored, kept on disk to reproduce the accuracy number):
-`evaluate.py` (accuracy check vs ground-truth FENs) + `fen_to_grid.py`, `view_orientations.py` (FEN → label grid).
 
 ## Reproduce the held-out accuracy
 

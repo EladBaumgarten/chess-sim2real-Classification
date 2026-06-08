@@ -13,7 +13,7 @@ a 13-class CNN/ViT (12 piece types + empty). The graded entry point is
 
 | Folder | Contents |
 |--------|----------|
-| [`evaluation/`](evaluation/) | **Evaluation deliverable.** `predict_board(image)` + the vendored DINOv2 backbone. Loads the graded checkpoint from `checkpoints/` and runs offline. (A local `evaluate.py` validation harness is kept on disk, gitignored.) |
+| [`evaluation/`](evaluation/) | **Evaluation deliverable.** `predict_board(image)` + the vendored DINOv2 backbone, loading the graded checkpoint from `checkpoints/` (offline). Also ships `evaluate.py` to reproduce the held-out accuracy. |
 | [`preprocessing/`](preprocessing/) | Shared library: corner detection / warp / crop (`verify_woelflein_crops.py`), FEN→label grid (`fen_to_grid.py`, `view_orientations.py`), the PyTorch `ChessSquareDataset`, manifest/corner-cache builders. |
 | [`syn_data_generation/`](syn_data_generation/) | Blender synthetic-dataset generation for **dataset_v1** (`build_dataset_v1.py`, `chess_position_api_v1_hdri.py`, `render_full_dataset_v1.sbatch`) and dataset audits. Runs inside Blender's Python. |
 | [`training/dino/`](training/dino/) | DINOv2 ViT-S/14 training code (flat). [`train.py`](training/dino/train.py) is the shared parametrized trainer (6 runs via `--mode`/`--run_name`); `train_combindedGame6_diag.py`, `train_realonly_ablation.py`, and `train_labelsmooth_ablation.py` are the dedicated scripts for the 3 special runs. |
@@ -64,19 +64,22 @@ python evaluate.py --gt ../data/game7_per_frame/gt.csv \
                    --imgs ../data/game7_per_frame/images --view game7
 ```
 
-## Training (per architecture)
+## Training (DINOv2)
 
-Each `training/<arch>/` folder is runnable on its own; see its `README.md`. Example
-(DINOv2):
+The DINOv2 training scripts live flat in [`training/dino/`](training/dino/):
 
 ```bash
 cd training/dino
-python training_scripts/train.py --mode stage5 --run_name dino_combined
-python eval_games_2_6.py --run_name dino_combined
+python train.py --mode stage5 --run_name dino_combined        # 6 runs via --mode/--run_name
+python train_combindedGame6_diag.py --run_name dino_combined_Game6boosted   # special runs
 ```
 
-Training reads the synthetic/real datasets and writes checkpoints under each run's
-`checkpoints/` folder (gitignored — only the graded `dino_combined_Game6boosted` weight is committed).
+> **Note — training needs the full local setup, not a bare clone.** It requires (a) the
+> datasets under `data/` (from the Drive, below) and (b) the shared eval module
+> `rescan_checkpoint_selection.py`, which lives under `training/resnet18/` and is kept
+> **local-only** (gitignored). The committed repo ships the *inference* path (`evaluation/`)
+> and the dino training code for reference; full training reproduction uses the local/Drive tree.
+> Checkpoints are written per run under `checkpoints/<run>/` (only `best_real.pt` per run is committed).
 
 ## Datasets
 

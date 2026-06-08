@@ -2,19 +2,10 @@
 woelflein_crops.py — board localisation + warp + crop (inference subset).
 
 Ported from the chesscog pipeline (Wölflein & Arandjelović 2021, J. Imaging;
-https://github.com/georg-wolflein/chesscog, MIT). This is the trimmed,
-self-contained inference subset of the project's `verify_woelflein_crops.py`:
-only `find_corners`, `warp_chessboard_image`, `crop_square` and their helpers.
-The diagnostic/visualisation code and all absolute project paths have been
-removed so this module is portable (no dependency on the rest of the repo).
-
-Pipeline:
-  1. find_corners(img_bgr) — Canny edges -> Hough lines -> agglomerative cluster
-     into horiz/vert -> DBSCAN dedup -> RANSAC homography of grid intersections
-     -> Sobel border refinement -> 4 outer corner coords [TL, TR, BR, BL].
-  2. warp_chessboard_image(img, corners) — perspective warp to IMG_SIZE x IMG_SIZE
-     = 500x500 with the 8x8 board at the inner [50..450, 50..450] region.
-  3. crop_square(warped, row, col) — 100x100 (2x2-square) patch centred on a square.
+https://github.com/georg-wolflein/chesscog, MIT). Self-contained inference subset:
+find_corners (Canny -> Hough -> cluster -> RANSAC homography -> Sobel refine),
+warp_chessboard_image (perspective warp to 500x500, board at inner [50..450]),
+crop_square (100x100 patch centred on a square).
 """
 
 import cv2
@@ -22,11 +13,8 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering, DBSCAN
 
 
-# --------------------------------------------------------------------------
-# Config — flattened from chesscog's config/corner_detection.yaml.
-# EDGE_DETECTION thresholds retuned (LOW=30/HIGH=90) for the project renders;
-# everything else left at chesscog defaults.
-# --------------------------------------------------------------------------
+# chesscog corner_detection config; EDGE_DETECTION thresholds retuned
+# (LOW=30/HIGH=90) for the project renders, rest left at chesscog defaults.
 CFG = {
     "RESIZE_IMAGE_WIDTH": 1200,
     "EDGE_DETECTION": {
@@ -66,9 +54,7 @@ BOARD_SIZE = 8 * SQUARE_SIZE             # 400
 IMG_SIZE = BOARD_SIZE + 2 * SQUARE_SIZE  # 500 — board at inner [50..450]
 
 
-# ==========================================================================
 # Ported from chesscog/core/coordinates.py
-# ==========================================================================
 def to_homogenous_coordinates(coords):
     return np.concatenate(
         [coords, np.ones((*coords.shape[:-1], 1))], axis=-1)
@@ -78,9 +64,7 @@ def from_homogenous_coordinates(coords):
     return coords[..., :2] / coords[..., 2, np.newaxis]
 
 
-# ==========================================================================
 # Ported from chesscog/core/__init__.py
-# ==========================================================================
 def sort_corner_points(points: np.ndarray) -> np.ndarray:
     """Order corners as [TL, TR, BR, BL] by image position."""
     points = points[points[:, 1].argsort()]
@@ -89,9 +73,7 @@ def sort_corner_points(points: np.ndarray) -> np.ndarray:
     return points
 
 
-# ==========================================================================
 # Ported from chesscog/corner_detection/detect_corners.py
-# ==========================================================================
 class ChessboardNotLocatedException(Exception):
     pass
 
@@ -149,8 +131,7 @@ def _sort_lines(lines):
 def _cluster_horizontal_and_vertical_lines(lines):
     lines = _sort_lines(lines)
     thetas = lines[..., 1].reshape(-1, 1)
-    # Vectorised inline of chesscog's pairwise angle distance (its Python-callable
-    # metric broke in newer sklearn). Output identical.
+    # Vectorised chesscog's pairwise angle distance (its callable metric broke in newer sklearn).
     t = thetas.ravel()
     d = np.abs(t[:, None] - t[None, :]) % (2 * np.pi)
     distance_matrix = np.minimum(d, np.pi - d)
@@ -392,9 +373,7 @@ def find_corners(img_bgr):
     return sort_corner_points(img_corners)
 
 
-# ==========================================================================
 # Ported from chesscog/occupancy_classifier/create_dataset.py
-# ==========================================================================
 def warp_chessboard_image(img: np.ndarray, corners: np.ndarray) -> np.ndarray:
     """Verbatim from chesscog. img: H x W x 3 (any channel order). corners:
     (4, 2) in TL/TR/BR/BL order. Returns IMG_SIZE x IMG_SIZE warped board."""

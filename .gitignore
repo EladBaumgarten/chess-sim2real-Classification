@@ -52,6 +52,8 @@ Thumbs.db
 # evaluation/predict_board.py loads dino_combined_Game6boosted/best_real.pt;
 # the other runs' best_real.pt are committed for reference/comparison.
 !checkpoints/*/best_real.pt
+# dino_zeroshot is synth-only (no best_real.pt) — keep its synth-monitor checkpoint instead
+!checkpoints/dino_zeroshot/best_synth_monitor.pt
 
 # ---- diagnostic/report-figure scripts: kept locally, not part of the submission ----
 analysis/
@@ -70,11 +72,6 @@ preprocessing/train_zero_shot.py
 
 # ---- results: regenerable diagnostic outputs (figures, metrics, report writeup) — kept local only ----
 results/
-
-# ---- evaluation/: track only what predict_board (the teacher's test) needs; the rest is local ----
-evaluation/evaluate.py
-evaluation/fen_to_grid.py
-evaluation/view_orientations.py
 
 # ---- training/convnext & training/resnet18: kept local only (not tracked) ----
 training/convnext/

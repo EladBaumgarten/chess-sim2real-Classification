@@ -1,21 +1,9 @@
-"""
-chess_dataset.py — PyTorch Dataset for per-square classification.
+"""PyTorch Dataset for per-square classification. One sample = (source image,
+board square) → (crop_tensor[3,100,100] float32 in [0,1], label).
 
-One sample = (one source image, one board square) → (crop_tensor, label).
-
-Pipeline inside __getitem__:
-  1. Look up manifest row idx → source_image, view, board_row, board_col, label.
-  2. cv2.imread the source image  (uint8 BGR, 512×512).
-  3. Read cached corners from corners.json dict  (O(1) lookup).
-  4. warp_chessboard_image(bgr, corners)  → 500×500 BGR (board at inner [50..450]).
-  5. crop_square(warped, row, col)  → 100×100 BGR (2×2 squares centered on target).
-  6. Convert BGR → RGB.
-  7. Apply self.transform if provided (sees HWC uint8 RGB).
-  8. Tensorize: HWC → CHW, uint8 → float32, divide by 255 → values in [0, 1].
-  9. Return (tensor[3, 100, 100], label_int).
-
-Augmentation lives in the transform argument — keeping it out of the Dataset
-itself lets us ablate it later by swapping in different callables.
+Crops are computed on-the-fly: warp via cached corners, then crop_square.
+Augmentation is passed in as `transform` (applied to HWC uint8 RGB) so it can
+be ablated independently of the Dataset.
 """
 
 import json
@@ -38,9 +26,7 @@ DEFAULT_DATASET_DIR = Path(
 
 
 class ChessSquareDataset(Dataset):
-    """One sample per (image × board square). 6,132 images × 64 squares =
-    392,448 samples in dataset_v1.
-    """
+    """One sample per (image × board square); 392,448 samples in dataset_v1."""
 
     def __init__(
         self,
@@ -51,15 +37,11 @@ class ChessSquareDataset(Dataset):
     ):
         """
         Args:
-            manifest: path to manifest.csv OR a pandas DataFrame already
-                loaded/filtered. Columns expected:
-                source_image, view, board_row, board_col, label, fen.
-            corners_json_path: path to corners.json (dict: image_name →
-                [[tl_x,tl_y], [tr_x,tr_y], [br_x,br_y], [bl_x,bl_y]]).
-            dataset_dir: directory containing source PNGs. Defaults to
-                Project2_3/dataset_v1/images/.
-            transform: optional callable applied to the (100, 100, 3) uint8
-                RGB crop BEFORE tensorization. None for no augmentation.
+            manifest: path to manifest.csv or a preloaded/filtered DataFrame.
+            corners_json_path: path to corners.json (image_name → 4 corners).
+            dataset_dir: source PNG directory; defaults to dataset_v1/images/.
+            transform: optional callable on the (100,100,3) uint8 RGB crop
+                before tensorization.
         """
         if isinstance(manifest, pd.DataFrame):
             self.manifest = manifest.reset_index(drop=True)

@@ -1,15 +1,7 @@
-"""
-test_dataset.py — smoke test for ChessSquareDataset.
-
-  - Instantiates the dataset.
-  - Asserts len == 392448 (= 6132 labelled images × 64 squares).
-  - Pulls 3 random samples (seed=42), prints tensor shape/dtype/range/label
-    and per-sample latency.
-  - Saves each crop as a PNG to ./results/dataset_smoke_test/ — these go
-    through the full Dataset.__getitem__ path (not the standalone verify
-    script), so we can confirm the training-time pipeline yields the same
-    visuals as the verification pipeline.
-  - Prints a single-threaded epoch-time estimate (avg_latency × len).
+"""Smoke test for ChessSquareDataset: asserts len == 392448, pulls 3 seeded
+samples (checking shape/dtype/range/label and latency), saves each crop through
+the full __getitem__ path to ./results/dataset_smoke_test/, and prints an
+epoch-time estimate.
 """
 
 import random
@@ -57,8 +49,7 @@ def safe_name(s):
 
 
 def save_crop_png(tensor, label, idx, manifest_row, out_path):
-    """Denormalize tensor → uint8 RGB → upscale 3× → annotate with label."""
-    # tensor: (3, H, W) float in [0,1] → (H, W, 3) uint8
+    """Denormalize tensor → uint8 RGB → upscale → annotate with label."""
     arr = (tensor.permute(1, 2, 0).numpy() * 255.0).clip(0, 255).astype(np.uint8)
     big = np.array(Image.fromarray(arr).resize((300, 300), Image.NEAREST))
     name = CLASS_NAMES[label]
@@ -88,10 +79,8 @@ def main():
     assert n == EXPECTED_LEN, f"expected {EXPECTED_LEN}, got {n}"
     print(f"  OK (matches expected {EXPECTED_LEN})")
 
-    # Warm-up — first cv2/torch call is often noticeably slower
-    _ = ds[0]
+    _ = ds[0]  # warm-up: first cv2/torch call is slower
 
-    # 3 random samples (deterministic seed)
     rng = random.Random(SEED)
     indices = [rng.randrange(n) for _ in range(3)]
     print(f"\nPulling 3 random samples (seed={SEED}): {indices}")
@@ -122,8 +111,7 @@ def main():
     print(f"avg __getitem__ time: {avg*1000:.1f}ms")
     print(f"single-threaded epoch ({n} samples): "
           f"{avg * n:.0f}s = {avg * n / 60:.1f}min")
-    # Multi-worker rough estimate (assumes near-linear scaling, which CPU
-    # workers + IO usually nearly achieve up to ~8 workers)
+    # Rough multi-worker estimate (assumes near-linear scaling up to ~8 workers).
     for w in (4, 8, 16):
         secs = avg * n / w
         print(f"  with {w:2d} DataLoader workers:  ~{secs/60:.1f}min")

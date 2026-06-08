@@ -1,25 +1,16 @@
-"""
-fen_to_grid_test.py — hand-verified assertions for fen_to_label_grid().
+"""Hand-verified assertions for fen_to_label_grid().
 
-Five distinctive ASYMMETRIC FENs are tested. Each is chosen so that any
-orientation bug would visibly misplace a piece (e.g., a single piece in a
-corner, or kings on diagonal corners). For each, specific image-space cells
-are asserted against the expected piece class.
-
-Plus an edge-case test for the empty board (8/8/8/8/8/8/8/8) — separates
-parser correctness from orientation correctness.
-
-Run:   /home/eladbaum/.conda/envs/chess/bin/python fen_to_grid_test.py
+Tests five asymmetric FENs (any orientation bug visibly misplaces a piece)
+plus an empty-board case that isolates parser from orientation correctness.
 """
 import numpy as np
 
 from preprocessing.fen_to_grid import EMPTY_CLASS, fen_to_label_grid
 
 
-# Convenience name aliases (project class encoding 0-11; 12 = empty)
 W_PAWN, W_ROOK, W_KNIGHT, W_BISHOP, W_QUEEN, W_KING = range(6)
 B_PAWN, B_ROOK, B_KNIGHT, B_BISHOP, B_QUEEN, B_KING = range(6, 12)
-E = EMPTY_CLASS  # 12
+E = EMPTY_CLASS
 
 SYM = {
     W_PAWN: "P", W_ROOK: "R", W_KNIGHT: "N", W_BISHOP: "B",
@@ -37,8 +28,7 @@ def grid_to_str(grid):
 
 
 def _all_empty_except(grid, expected):
-    """Assert grid has exactly the (r, c, class) entries in `expected` and
-    everything else is EMPTY_CLASS."""
+    """Assert grid has exactly the `expected` (r, c, class) entries, rest empty."""
     occupied = set()
     for r, c, cls in expected:
         assert grid[r, c] == cls, (
@@ -56,9 +46,6 @@ def _all_empty_except(grid, expected):
             )
 
 
-# --------------------------------------------------------------------------
-# Edge case: empty board
-# --------------------------------------------------------------------------
 def test_empty_board():
     """Isolates parser correctness: did digit-expansion produce all empties?"""
     fen = "8/8/8/8/8/8/8/8"
@@ -72,14 +59,8 @@ def test_empty_board():
     print("PASS  test_empty_board")
 
 
-# --------------------------------------------------------------------------
-# 5 hand-verified asymmetric FENs
-# --------------------------------------------------------------------------
 def test_1_white_king_on_e1():
-    """8/8/8/8/8/8/8/4K3 — white K on e1.
-    FEN-native: rank 1 = row 7, file e = col 4   →  board[7, 4] = K.
-    After rot180:  (7, 4) → (0, 3).
-    Distinctive: K in a unique non-symmetric cell (col 3 ≠ col 4)."""
+    """8/8/8/8/8/8/8/4K3 — white K on e1 → image (0, 3) after rot180."""
     fen = "8/8/8/8/8/8/8/4K3"
     grid = fen_to_label_grid(fen, "overhead")
     _all_empty_except(grid, [(0, 3, W_KING)])
@@ -87,10 +68,7 @@ def test_1_white_king_on_e1():
 
 
 def test_2_kings_on_diagonal_corners():
-    """7K/8/8/8/8/8/8/k7 — white K on h8, black k on a1.
-    FEN-native:  K at (0, 7),  k at (7, 0).
-    After rot180: K → (7, 0),  k → (0, 7).
-    Distinctive: both axes asymmetric AND opposite colors swap corners."""
+    """7K/8/8/8/8/8/8/k7 — white K h8, black k a1 → (7,0) and (0,7) after rot180."""
     fen = "7K/8/8/8/8/8/8/k7"
     grid = fen_to_label_grid(fen, "overhead")
     _all_empty_except(grid, [(7, 0, W_KING), (0, 7, B_KING)])
@@ -98,15 +76,9 @@ def test_2_kings_on_diagonal_corners():
 
 
 def test_3_back_ranks_only():
-    """r3k2r/8/8/8/8/8/8/R3K2R — castling-ready back ranks, only those squares.
-    FEN-native row 0 (rank 8): r at 0, k at 4, r at 7.
-    FEN-native row 7 (rank 1): R at 0, K at 4, R at 7.
-    After rot180:
-      row 0 (was row 7): R at 7, K at 3, R at 0   (image top = white)
-      row 7 (was row 0): r at 7, k at 3, r at 0   (image bottom = black)
-    Note kings shift from col 4 to col 3 because cols flip (c → 7-c).
-    Distinctive: catches row-mirror bugs (white must end up at top, not
-    bottom) AND col-mirror bugs (K must be at col 3, not col 4)."""
+    """r3k2r/8/8/8/8/8/8/R3K2R — castling-ready back ranks. After rot180 white
+    lands on image-top row, black on image-bottom; kings at col 3 (cols flip).
+    Catches both row-mirror and col-mirror bugs."""
     fen = "r3k2r/8/8/8/8/8/8/R3K2R"
     grid = fen_to_label_grid(fen, "overhead")
     _all_empty_except(grid, [
@@ -117,15 +89,9 @@ def test_3_back_ranks_only():
 
 
 def test_4_diagonal_pawns_asymmetric():
-    """8/p7/1p6/2p5/8/8/PPP5/8 — three black pawns climbing diagonally on
-    a-b-c files in upper-left of FEN, plus a row of three white pawns at a2-c2.
-    FEN-native:
-      board[1,0]=p  board[2,1]=p  board[3,2]=p
-      board[6,0]=P  board[6,1]=P  board[6,2]=P
-    After rot180 (r,c → 7-r, 7-c):
-      black pawns:  (6,7), (5,6), (4,5)   — diagonal in image lower-right
-      white pawns:  (1,7), (1,6), (1,5)   — short row in image upper-right
-    Distinctive: any row-only or col-only mirror produces a different shape."""
+    """8/p7/1p6/2p5/8/8/PPP5/8 — diagonal black pawns + a row of white pawns.
+    After rot180 the diagonal/row shapes land such that any single-axis mirror
+    produces a different layout."""
     fen = "8/p7/1p6/2p5/8/8/PPP5/8"
     grid = fen_to_label_grid(fen, "overhead")
     _all_empty_except(grid, [
@@ -136,23 +102,16 @@ def test_4_diagonal_pawns_asymmetric():
 
 
 def test_5_white_queen_on_a1():
-    """8/8/8/8/8/8/8/Q7 — single white Q on a1.
-    FEN-native: rank 1 = row 7, file a = col 0   →  board[7, 0] = Q.
-    After rot180:  (7, 0) → (0, 7).
-    Distinctive: Q on a CORNER, and each of the 4 orientations lands it on
-    a different corner — any wrong transform is immediately visible."""
+    """8/8/8/8/8/8/8/Q7 — white Q a1 → image corner (0, 7) after rot180.
+    Each of the 4 orientations lands Q on a different corner."""
     fen = "8/8/8/8/8/8/8/Q7"
     grid = fen_to_label_grid(fen, "overhead")
     _all_empty_except(grid, [(0, 7, W_QUEEN)])
     print("PASS  test_5_white_queen_on_a1")
 
 
-# --------------------------------------------------------------------------
-# Additional sanity checks
-# --------------------------------------------------------------------------
 def test_view_consistency():
-    """rot180 is the same transform for all 3 dataset_v1 views — same FEN
-    must produce identical grids across overhead / west / east."""
+    """All 3 dataset_v1 views share rot180, so grids must be identical."""
     fen = "r3k2r/8/8/8/8/8/8/R3K2R"
     g_oh = fen_to_label_grid(fen, "overhead")
     g_w = fen_to_label_grid(fen, "west")
@@ -187,9 +146,6 @@ def test_malformed_fen_raises():
     print("PASS  test_malformed_fen_raises")
 
 
-# --------------------------------------------------------------------------
-# Display
-# --------------------------------------------------------------------------
 HAND_VERIFIED_FENS = [
     ("1: single white king (e1)",          "8/8/8/8/8/8/8/4K3"),
     ("2: kings on diagonal corners",       "7K/8/8/8/8/8/8/k7"),

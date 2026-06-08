@@ -1,20 +1,12 @@
-"""
-Build dataset_v1: continuation of the first 1500-image dataset.
+"""Build dataset_v1: continuation of the first 1500-image dataset.
 
-Same Blender chess set, same camera angle (25°), same lens (26), same resolution
-(800 raw → 512 rectified), same three views per FEN (overhead, west, east) from
-the black perspective. The ONLY difference is per-FEN HDRI lighting variation:
-one HDRI is sampled per FEN and used as the world environment.
-
-Designed to run on the Linux cluster GPU (different Blender path than the
-Windows v1 driver). FENs are loaded from the same Fens/*.zip course archives,
-in the same dedup order as v1, so dataset_v1 indices line up with v1 indices.
+Same chess set, camera (25° tilt, lens 26), resolution (800 raw -> 512
+rectified), and three views per FEN (overhead/west/east, black perspective).
+The only addition over v1 is per-FEN HDRI lighting variation. FENs are loaded
+in the same dedup order as v1, so dataset_v1 indices line up with v1.
 
 Usage:
-    # 10 sample FENs (30 images) on the cluster GPU
     python build_dataset_v1.py --limit 10
-
-    # Resume
     python build_dataset_v1.py --resume
 """
 
@@ -30,9 +22,6 @@ import time
 import zipfile
 from pathlib import Path
 
-# ======================================================================
-# CONFIG
-# ======================================================================
 BLENDER_EXE = Path("/home/eladbaum/blender/blender")
 PROJECT_DIR = Path(__file__).parent.resolve()
 BLEND_FILE = PROJECT_DIR / "chess-set.blend"
@@ -86,10 +75,8 @@ def load_fens_from_zipped_csvs(fens_dir):
 
 
 def load_fens_from_v1_labels(labels_csv):
-    """Load FENs from v1's dataset/labels.csv, guaranteeing the same
-    fen_idx -> fen mapping (and therefore the same characters/positions)
-    as the original 1500-image dataset. Deduplicates by fen_idx (which
-    appears 3x in v1 labels — one row per view)."""
+    """Load FENs from v1's dataset/labels.csv, preserving the fen_idx -> fen
+    mapping. Dedupes by fen_idx (appears 3x in v1 labels, one row per view)."""
     entries = []
     seen_idx = set()
     with open(labels_csv, newline="", encoding="utf-8") as f:
@@ -228,9 +215,8 @@ def main():
     IMAGES_SUBDIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Special case: custom single FEN. Render once, then exit. We do this
-    # BEFORE touching labels.csv so a diagnostic render never wipes the
-    # existing dataset metadata.
+    # Custom single FEN: render once and exit, before touching labels.csv so a
+    # diagnostic render can't wipe existing dataset metadata.
     if args.custom_fen:
         rng = random.Random(args.seed)
         hdri_path = rng.choice(HDRIS)
@@ -240,7 +226,6 @@ def main():
         print(f"[CUSTOM FEN] tag={tag} fen={args.custom_fen}")
         print(f"  hdri={hdri_path.name} rot={hdri_rotation:.0f}° str={hdri_strength:.2f}")
 
-        # Clear leftover rectified files first
         if RENDERS_DIR.exists():
             for f in RENDERS_DIR.glob("*_rectified.png"):
                 f.unlink()
@@ -278,8 +263,7 @@ def main():
             print(f"  [OK] {dest.name}")
         return
 
-    # Normal path: prepare CSV header / load resume state. Resume tracks
-    # (fen_idx, run_idx) pairs so multi-variant runs can skip done work.
+    # Resume tracks (fen_idx, run_idx) pairs so multi-variant runs skip done work.
     already_done = set()
     csv_exists = LABELS_CSV.exists()
     if args.resume and csv_exists:
@@ -332,9 +316,8 @@ def main():
     batch_start = time.perf_counter()
 
     for local_idx, entry in enumerate(entries):
-        # When loading from v1 labels, preserve the original fen_idx so
-        # filenames match dataset/images naming. Otherwise compute from
-        # local position + --start (z dedup order).
+        # From v1 labels: keep original fen_idx so filenames match v1 naming.
+        # Otherwise derive from local position + --start.
         if "fen_idx" in entry:
             fen_idx = entry["fen_idx"]
         else:
@@ -346,8 +329,7 @@ def main():
                 print(f"[FEN {fen_idx:04d} run {run_idx}] skip (done)")
                 continue
 
-            # Per (fen_idx, run_idx) RNG so resume reproduces the same HDRI
-            # choice for any given pair.
+            # Per (fen_idx, run_idx) RNG so resume reproduces the same HDRI choice.
             per_run_rng = random.Random(
                 args.seed * 1_000_003 + fen_idx * 1000 + run_idx
             )

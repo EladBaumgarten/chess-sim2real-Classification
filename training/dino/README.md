@@ -58,3 +58,9 @@ $PY -u train_labelsmooth_ablation.py --run_name dino_combined_Game6boosted_ablat
 
 `eval_games_2_6.py --run_name <run>` re-runs the verbatim games-2/6 eval (with the DINO
 resize) on any run's best checkpoint.
+
+> The training scripts here import `rescan_checkpoint_selection` (under `training/resnet18/`)
+> and use the helpers `eval_games_2_6.py` / `build_report.py` / `confirm_dino.py`. These, like
+> `training/resnet18` and `training/convnext`, are kept **local-only** (gitignored) — training is
+> reproducible from the full local/Drive tree, not a bare clone. The committed inference path
+> (`evaluation/`) is fully self-sufficient.

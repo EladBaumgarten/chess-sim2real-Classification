@@ -1,11 +1,8 @@
-"""
-v1-style render with optional HDRI world environment.
+"""v1-style render with optional HDRI world environment.
 
-Continuation of chess_position_api_v2.py used to render the first 1500-image
-dataset. Identical camera setup (25° tilt, lens=26, three views from black:
-overhead/west/east) and identical rectified output (800 raw -> 512 rectified).
-The ONLY addition is that a per-render HDRI is loaded into the world shader
-so lighting/background colour varies across the dataset.
+Same camera setup (25° tilt, lens 26, three views from black: overhead/west/
+east) and rectified output (800 raw -> 512) as the v1 driver. The only addition
+is a per-render HDRI loaded into the world shader so lighting/background varies.
 
 Usage:
     blender chess-set.blend --background --python chess_position_api_v1_hdri.py -- \
@@ -31,9 +28,7 @@ from bpy_extras.object_utils import world_to_camera_view
 import numpy as np
 from PIL import Image
 
-# ==========================
-# CONFIG (matches v1 exactly)
-# ==========================
+# Config (matches v1 exactly).
 REAL_BOARD_SIZE = 0.53
 DESIRED_CAMERA_HEIGHT = 2
 DESIRED_ANGLE_DEGREES = 25
@@ -192,9 +187,8 @@ def get_board_corners_3d(outer_padding=0.0):
         key = (round(p.x, 6), round(p.y, 6))
         if key not in seen:
             seen.add(key); unique.append(p)
-    # Expand the 4 corners outward by `outer_padding` (fraction of half-board)
-    # so the rectified output includes a border of the surrounding scene
-    # (frame, table, HDRI background) instead of cropping flush to the board.
+    # Expand corners outward by `outer_padding` (fraction of half-board) so the
+    # output keeps a border of surrounding scene instead of cropping flush.
     if outer_padding > 0 and len(unique) == 4:
         cx = sum(p.x for p in unique) / 4.0
         cy = sum(p.y for p in unique) / 4.0
@@ -324,7 +318,7 @@ def render_all_views(board_info, view='black'):
     scene.render.image_settings.file_format = 'PNG'
     scene.cycles.use_denoising = True
 
-    # ---- Cycles compute device ----
+    # Cycles compute device.
     if FORCE_CPU:
         scene.cycles.device = 'CPU'
         device_msg = "CPU (forced)"
@@ -454,7 +448,7 @@ def main():
 
     board_info = get_board_info()
 
-    # Fix board orientation (same as v1)
+    # Fix board orientation (same as v1).
     plane = bpy.data.objects.get("Black & white")
     if plane:
         frame = bpy.data.objects.get("Outer frame")

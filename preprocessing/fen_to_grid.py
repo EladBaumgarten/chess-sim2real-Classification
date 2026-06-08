@@ -1,16 +1,8 @@
-"""
-fen_to_grid.py — convert a FEN piece-placement string into an (8, 8) int64
-label grid in IMAGE coordinates, applying the per-view orientation transform
-from view_orientations.py.
+"""Convert a FEN piece-placement string into an (8, 8) int64 label grid in
+image coordinates, applying the per-view transform from view_orientations.py.
 
-Class encoding (project spec, 13 classes total, no 'occluded' for synthetic):
-    0  P  white pawn       6  p  black pawn
-    1  R  white rook       7  r  black rook
-    2  N  white knight     8  n  black knight
-    3  B  white bishop     9  b  black bishop
-    4  Q  white queen     10  q  black queen
-    5  K  white king      11  k  black king
-   12  .  empty
+Class encoding (project spec, 13 classes): 0-5 white P/R/N/B/Q/K,
+6-11 black p/r/n/b/q/k, 12 empty.
 """
 import numpy as np
 
@@ -25,14 +17,11 @@ EMPTY_CLASS = 12
 
 
 def _parse_fen_to_raw_grid(fen: str) -> np.ndarray:
-    """Parse the piece-placement field of a FEN into an 8×8 grid in
-    FEN-NATIVE coordinates: row 0 = rank 8 (top of FEN string), col 0 = file
-    a. Empty squares are EMPTY_CLASS (12). This is the *un-oriented* grid;
-    callers should apply view-specific transforms before treating it as
-    image-space.
+    """Parse a FEN's piece-placement field into an 8×8 FEN-native grid
+    (row 0 = rank 8, col 0 = file a; empty = EMPTY_CLASS). Un-oriented;
+    callers apply the view transform to get image space.
 
-    Raises ValueError on malformed FEN (wrong number of ranks, unknown
-    piece character, or rank that doesn't sum to 8).
+    Raises ValueError on malformed FEN.
     """
     board = np.full((8, 8), EMPTY_CLASS, dtype=np.int64)
     placement = fen.split()[0]
@@ -59,19 +48,8 @@ def _parse_fen_to_raw_grid(fen: str) -> np.ndarray:
 
 
 def fen_to_label_grid(fen: str, view: str) -> np.ndarray:
-    """
-    Convert a FEN string to an 8×8 grid of integer labels (0-12) in
-    image-coordinate space for the given view.
-
-    Returns array of shape (8, 8), dtype=int64, where grid[row, col] is the
-    label for the square at image position (row, col).
-
-    Label encoding (project spec):
-      0  P (white pawn)    1  R (white rook)    2  N (white knight)
-      3  B (white bishop)  4  Q (white queen)   5  K (white king)
-      6  p (black pawn)    7  r (black rook)    8  n (black knight)
-      9  b (black bishop) 10  q (black queen)  11  k (black king)
-     12  .  (empty)
+    """Convert a FEN to an (8, 8) int64 grid of labels (0-12) in image
+    coordinates for `view`. grid[row, col] is the label at image (row, col).
     """
     raw = _parse_fen_to_raw_grid(fen)
     return apply_orientation(raw, view).astype(np.int64)

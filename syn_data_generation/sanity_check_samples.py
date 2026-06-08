@@ -1,23 +1,9 @@
 """Stratified sanity check for dataset_v1.
 
-Picks 10 samples (3 sparse + 3 medium + 3 dense + 1 random by piece count;
-≥4 distinct HDRIs) and verifies that the rendered pixels match the FEN
-labels.
-
-Outputs:
-  dataset_v1/sanity/sample_<i>__<image>.png   per-sample side-by-side:
-      left   = rendered image with grid + labels (yellow=white, magenta=black)
-      right  = rendered image with grid only (no labels)
-  dataset_v1/sanity/diagnostic_K.png          lone-K-on-d5 in all 3 cameras
-                                              (one row per camera, label
-                                              overlaid; visually verify the
-                                              K appears in the correct
-                                              labeled square in each)
-  dataset_v1/sanity/samples_contact.png       contact sheet of all 10
-
-Console output includes a 1-line FEN-vs-label parity check and a printed
-8x8 grid for 2 of the 10 samples.
-"""
+Picks 10 samples stratified by piece count (with >=4 distinct HDRIs) and
+verifies rendered pixels match the FEN labels via side-by-side overlays, plus
+a lone-K-on-d5 diagnostic across all 3 cameras and a 1-line parity check.
+Outputs to dataset_v1/sanity/."""
 import argparse
 import csv
 import os
@@ -37,16 +23,13 @@ CSV = DATASET_DIR / "labels.csv"
 IMAGES_DIR = DATASET_DIR / "images"
 SANITY_DIR = DATASET_DIR / "sanity"
 
-# Diagnostic FEN: lone white king on d5 (an asymmetric square, not on the
-# center or a diagonal of symmetry). If the K appears at the correct grid
-# cell in all 3 cameras after applying the per-camera transform, the
-# transform is correct.
+# Lone white king on d5 (an asymmetric square): if the K lands on the correct
+# cell in all 3 cameras after the per-camera transform, the transform is right.
 DIAGNOSTIC_FEN = "8/8/8/3K4/8/8/8/8"
 DIAGNOSTIC_TAG = "K_on_d5"
 
-# Per-camera FEN-grid transform. v1's render script orders rectified corners
-# by image position (order_corners_tl_tr_br_bl), and the camera ends up
-# 180° from white-POV for all 3 cameras when --view=black is used.
+# Per-camera FEN-grid transform: the rectifier orders corners by image
+# position, leaving all 3 cameras 180° from white-POV under --view=black.
 VIEW_TRANSFORMS = {
     "1_overhead": "rot180",
     "2_west":     "rot180",
@@ -62,7 +45,6 @@ UNICODE_PIECES = {
     "k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟",
 }
 
-# Short tokens for terminal grid dump.
 SHORT = {
     "K":"wK","Q":"wQ","R":"wR","B":"wB","N":"wN","P":"wP",
     "k":"bK","q":"bQ","r":"bR","b":"bB","n":"bN","p":"bP",
@@ -75,9 +57,8 @@ def fen_piece_count(fen):
 
 
 def fen_to_grid_white_pov(fen):
-    """FEN -> 8x8 char grid. grid[0]=rank 8 (top), grid[7]=rank 1 (bottom).
-    This is the canonical white-POV orientation, NOT yet transformed for
-    the camera view."""
+    """FEN -> 8x8 char grid in white-POV orientation (grid[0]=rank 8),
+    before any per-camera transform."""
     grid = [["." for _ in range(8)] for _ in range(8)]
     rows = fen.split()[0].split("/")
     if len(rows) != 8:
@@ -106,7 +87,7 @@ def apply_transform(grid, name):
 
 
 def grid_to_class_tensor(char_grid):
-    """char_grid (np.ndarray of strings) -> int 8x8 class tensor."""
+    """Char grid -> int 8x8 class tensor."""
     out = np.full((8, 8), EMPTY_CLASS, dtype=np.int64)
     for r in range(8):
         for c in range(8):
@@ -117,7 +98,7 @@ def grid_to_class_tensor(char_grid):
 
 
 def print_grid(char_grid, title):
-    """Dump 8x8 grid to terminal using wP/bR etc tokens."""
+    """Dump 8x8 grid to terminal using wP/bR tokens."""
     print(f"\n{title}")
     print("    " + "   ".join("a b c d e f g h".split()))
     for r in range(8):
@@ -126,14 +107,10 @@ def print_grid(char_grid, title):
         print(f"{rank_num}   {row}")
 
 
-# ----------------------------------------------------------------------
-# Sample selection
-# ----------------------------------------------------------------------
 def stratify_samples(df, seed=2026, target=10):
-    """Pick `target` samples stratified by piece count.
-    Layout: target // 3 per bucket (sparse/medium/dense), remainder as random.
-    Ensures ≥4 distinct HDRIs when feasible. Falls back gracefully if the
-    pool is too small."""
+    """Pick `target` samples: target//3 per piece-count bucket (sparse/medium/
+    dense), remainder random, aiming for >=4 distinct HDRIs. Falls back to
+    uniform sampling if the pool is too small."""
     df = df.copy()
     df["piece_count"] = df["fen"].apply(fen_piece_count)
     df["bucket"] = pd.cut(
@@ -154,7 +131,7 @@ def stratify_samples(df, seed=2026, target=10):
     chosen_idx = []
     for bucket in ["sparse", "medium", "dense"]:
         sub = df[df["bucket"] == bucket]
-        # Diversify by HDRI within the bucket if possible
+        # Diversify by HDRI within the bucket where possible.
         chosen = []
         hdris_seen = set()
         candidates = list(sub.index)
@@ -170,16 +147,14 @@ def stratify_samples(df, seed=2026, target=10):
             chosen = candidates[:per_bucket]
         chosen_idx.extend(chosen)
 
-    # Random picks for whatever's left of `target`
     remaining = [i for i in df.index if i not in chosen_idx]
     rng.shuffle(remaining)
     chosen_idx.extend(remaining[:n_random])
 
-    # HDRI diversity check (≥4 distinct)
+    # Enforce >=4 distinct HDRIs by swapping in under-represented ones.
     chosen_df = df.loc[chosen_idx].copy()
     distinct_hdris = chosen_df["hdri"].nunique()
     if distinct_hdris < 4:
-        # Try to substitute one same-bucket sample for HDRI diversity
         underrepresented = set(df["hdri"].unique()) - set(chosen_df["hdri"])
         for h in underrepresented:
             if distinct_hdris >= 4:
@@ -188,7 +163,7 @@ def stratify_samples(df, seed=2026, target=10):
             if alt_rows.empty:
                 continue
             alt_idx = rng.choice(alt_rows.index.tolist())
-            # Swap with the LAST element of the most-represented HDRI in chosen
+            # Drop one row of the most-represented HDRI to make room.
             most_common = chosen_df["hdri"].value_counts().idxmax()
             swappable = chosen_df[chosen_df["hdri"] == most_common].index
             if len(swappable) > 1:
@@ -203,9 +178,6 @@ def stratify_samples(df, seed=2026, target=10):
     return chosen_df.sort_values(["bucket", "piece_count"]).reset_index(drop=True)
 
 
-# ----------------------------------------------------------------------
-# Drawing
-# ----------------------------------------------------------------------
 def draw_image_with_labels(ax, img, label_char_grid, title):
     ax.imshow(img)
     W, H = img.size
@@ -238,12 +210,9 @@ def draw_image_grid_only(ax, img, title):
     ax.axis("off")
 
 
-# ----------------------------------------------------------------------
-# Diagnostic render of an asymmetric FEN
-# ----------------------------------------------------------------------
 def ensure_diagnostic_renders():
-    """Render the lone-K FEN if its 3 images aren't already present in
-    dataset_v1/images. Returns paths in (1_overhead, 2_west, 3_east) order."""
+    """Render the lone-K FEN if its 3 images aren't already present.
+    Returns paths in (1_overhead, 2_west, 3_east) order."""
     expected = {cam: IMAGES_DIR / f"fen_diag_{DIAGNOSTIC_TAG}_{cam}.png"
                 for cam in ["1_overhead", "2_west", "3_east"]}
     missing = [c for c, p in expected.items() if not p.exists()]
@@ -287,9 +256,6 @@ def write_diagnostic_overlay(image_paths):
     return out
 
 
-# ----------------------------------------------------------------------
-# Main
-# ----------------------------------------------------------------------
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--seed", type=int, default=2026)
@@ -317,7 +283,6 @@ def main():
     distinct_hdris = chosen["hdri"].nunique()
     print(f"\nDistinct HDRIs in selection: {distinct_hdris}")
 
-    # Per-sample side-by-side panels
     per_sample_paths = []
     sample_class_grids = []  # for FEN-vs-label parity check
     rng = random.Random(args.seed)
@@ -332,7 +297,6 @@ def main():
         class_grid = grid_to_class_tensor(char_grid)
         sample_class_grids.append(class_grid)
 
-        # Per-image figure
         fig, ax = plt.subplots(1, 2, figsize=(11, 5.5))
         n = fen_piece_count(row["fen"])
         title_l = (f"sample {i}: {Path(row['image_path']).name}\n"
@@ -346,7 +310,6 @@ def main():
         plt.close(fig)
         per_sample_paths.append(out)
 
-        # Dump 8x8 grid for the 2 chosen samples
         if i in grid_dump_indices:
             print_grid(
                 char_grid,
@@ -354,8 +317,8 @@ def main():
                 f"xform={xform}, FEN={row['fen'].split()[0]})"
             )
 
-    # Contact sheet (2 cols per sample: with-labels | grid-only)
-    cols = 4  # 2 samples per row in the contact sheet
+    # Contact sheet: 2 cols per sample (with-labels | grid-only).
+    cols = 4
     rows = (len(chosen) + cols//2 - 1) // (cols//2)
     fig, axes = plt.subplots(rows, cols, figsize=(cols * 3.2, rows * 3.2))
     if axes.ndim == 1:
@@ -371,7 +334,6 @@ def main():
             f"#{i} {Path(row['image_path']).name}\n{cam} pieces={fen_piece_count(row['fen'])}"
         )
         draw_image_grid_only(axes[r, c0 + 1], img, f"#{i} (grid only)")
-    # hide unused
     for k in range(len(chosen) * 2, rows * cols):
         axes[k // cols, k % cols].axis("off")
     plt.suptitle("dataset_v1 stratified sanity samples — left: image+labels, right: grid only",
@@ -383,12 +345,11 @@ def main():
     print(f"\nWrote per-sample images: {len(per_sample_paths)} into {SANITY_DIR}")
     print(f"Wrote contact sheet: {contact}")
 
-    # Diagnostic: lone-K FEN
     if not args.skip_diagnostic_render:
         diag_paths = ensure_diagnostic_renders()
         write_diagnostic_overlay(diag_paths)
 
-    # FEN-vs-label parity check (the 1-line summary)
+    # FEN-vs-label parity check.
     all_grids = np.stack(sample_class_grids, axis=0)
     label_empty_count = int((all_grids == EMPTY_CLASS).sum())
     fen_empty_count = 0

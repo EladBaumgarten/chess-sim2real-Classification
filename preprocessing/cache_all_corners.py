@@ -1,21 +1,9 @@
-"""
-cache_all_corners.py — run chesscog find_corners over every image in
-dataset_v1/, fall back to per-view averaged corners on failure, and save
-results to corners.json + corner_detection_log.csv.
+"""Run chesscog find_corners over every dataset_v1 image, fill failures with
+per-view averaged corners, and write corners.json, fallback_corners.json, and
+corner_detection_log.csv.
 
-Per the Step 3 brief:
-  - Pass 1: run find_corners on each image; record success / failure /
-    failure_reason. Sanity-check successful detections (in-bounds, area,
-    aspect) — failures here count as "bad_geometry".
-  - Compute per-view fallback corners as the MEAN of all successful
-    detections for that view. These are empirically grounded — not guessed.
-  - Pass 2 (in-memory only): for any failure, fill in the per-view mean as
-    the corners. No re-running detection.
-  - Save corners.json (all images, fallback-filled), corner_detection_log.csv
-    (per-image audit trail), and fallback_corners.json (the per-view means
-    so they can be reused by other scripts).
-
-Runtime expected ~30-40 min (mean 0.16s/image from robustness check × 11196).
+Pass 1 detects + sanity-checks each image; failures get the per-view mean of
+successful detections (empirically grounded, not guessed) in pass 2.
 """
 
 import csv
@@ -31,9 +19,6 @@ sys.path.insert(0, "/home/eladbaum/chess_project")
 from preprocessing.verify_woelflein_crops import find_corners, ChessboardNotLocatedException
 
 
-# --------------------------------------------------------------------------
-# Config
-# --------------------------------------------------------------------------
 DATASET_DIR = Path("/home/eladbaum/chess_project/syn_data_generation/dataset_v1/images")
 OUT_JSON = Path("/home/eladbaum/chess_project/corners.json")
 OUT_FALLBACK = Path("/home/eladbaum/chess_project/fallback_corners.json")
@@ -41,7 +26,7 @@ OUT_CSV = Path("/home/eladbaum/chess_project/corner_detection_log.csv")
 PROGRESS_EVERY = 500
 SEED = 0
 
-# Sanity-check thresholds — must match check_detector_robustness.py
+# Sanity-check thresholds — must match check_detector_robustness.py.
 CORNER_OOB_TOL = 10
 MIN_QUAD_AREA_FRACTION = 0.30
 ASPECT_RATIO_RANGE = (0.6, 1.66)
@@ -49,7 +34,6 @@ ASPECT_RATIO_RANGE = (0.6, 1.66)
 VIEWS = ("overhead", "west", "east")
 
 
-# --------------------------------------------------------------------------
 def quad_sanity(corners, img_shape):
     H, W = img_shape[:2]
     if not np.all((corners[:, 0] >= -CORNER_OOB_TOL)
@@ -71,20 +55,19 @@ def quad_sanity(corners, img_shape):
 
 
 def view_of(filename):
-    """fen_XXXX_rY_Z_<view>.png  → <view>"""
+    """fen_XXXX_rY_Z_<view>.png → <view>."""
     return filename.split("_")[-1].rsplit(".", 1)[0]
 
 
 def categorize_exception(e):
-    """Map an exception to one of the spec's failure_reason categories."""
+    """Map an exception to a failure_reason category."""
     if isinstance(e, ChessboardNotLocatedException):
         return "ransac_timeout" if "RANSAC" in str(e) else f"chessboard_not_located"
     return f"exception:{type(e).__name__}"
 
 
-# --------------------------------------------------------------------------
 def detect_pass(images):
-    """Pass 1: run find_corners on each image, return dict
+    """Run find_corners on each image, returning
     filename → {view, status, corners (or None), runtime_s, failure_reason}."""
     out = {}
     t0 = time.perf_counter()
@@ -153,15 +136,12 @@ def main():
     print(f"Progress every {PROGRESS_EVERY} images.\n")
     t_overall = time.perf_counter()
 
-    # ---- Pass 1 ----
     print("=== Pass 1: detect ===")
     detections = detect_pass(images)
 
-    # ---- Compute fallback ----
     print("\n=== Computing per-view empirical fallback (mean of successes) ===")
     fallback = compute_per_view_fallback(detections)
 
-    # ---- Pass 2: fill failures ----
     n_fallback = 0
     for d in detections.values():
         if d["corners"] is None:
@@ -169,18 +149,15 @@ def main():
             d["status"] = "fallback"
             n_fallback += 1
 
-    # ---- Write fallback corners ----
     with OUT_FALLBACK.open("w") as f:
         json.dump({v: fallback[v].tolist() for v in VIEWS}, f, indent=2)
     print(f"\nWrote {OUT_FALLBACK}")
 
-    # ---- Write corners.json ----
     corners_dict = {name: d["corners"].tolist() for name, d in detections.items()}
     with OUT_JSON.open("w") as f:
         json.dump(corners_dict, f)
     print(f"Wrote {OUT_JSON}  ({len(corners_dict)} entries)")
 
-    # ---- Write CSV log ----
     with OUT_CSV.open("w", newline="") as f:
         w = csv.writer(f)
         w.writerow([
@@ -200,7 +177,6 @@ def main():
             ])
     print(f"Wrote {OUT_CSV}")
 
-    # ---- Summary ----
     by_view = {v: {"detected": 0, "fallback": 0, "reasons": {}} for v in VIEWS}
     for d in detections.values():
         v = d["view"]
