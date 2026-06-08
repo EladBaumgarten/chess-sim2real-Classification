@@ -1,0 +1,33 @@
+------------------------------------
+Thu 14 May 2026 18:50:09 IDT
+SLURM_JOBID:		17523378
+SLURM_JOB_NODELIST:	cs-pheno-07
+SLURM_SCRATCH_DIR:	
+Allocated Resouces:	cpu - 6 / mem - 24576 MB / gpu - 
+SLURM_GPU_INDEX:	
+Running as eladbaum from coursefreifeld26 account with  QOS
+------------------------------------
+Loaded 511 unique FENs from /home/eladbaum/chess_project/Project2_3/dataset/labels.csv
+
+Rendering 4 FENs (view=black, resolution=800, samples=128)
+HDRIs: ['studio_small_03.exr', 'brown_photostudio_02.exr', 'lebombo.exr', 'entrance_hall.exr']
+Output: /home/eladbaum/chess_project/Project2_3/dataset_v1
+
+[FEN 0000] game2 frame 200 | hdri=lebombo.exr rot=350° str=1.27
+  fen=rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
+    [OK] 3 images in 18.4s
+[FEN 0001] game2 frame 588 | hdri=lebombo.exr rot=95° str=0.98
+  fen=rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR
+    [OK] 3 images in 18.2s
+[FEN 0002] game2 frame 620 | hdri=studio_small_03.exr rot=357° str=0.83
+  fen=rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR
+    [OK] 3 images in 18.3s
+[FEN 0003] game2 frame 840 | hdri=lebombo.exr rot=116° str=1.13
+  fen=rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR
+    [OK] 3 images in 18.3s
+
+============================================================
+Done: 4/4 FENs OK (12 images) in 73.3s (avg 18.3s/FEN)
+Dataset:  /home/eladbaum/chess_project/Project2_3/dataset_v1
+Labels:   /home/eladbaum/chess_project/Project2_3/dataset_v1/labels.csv
+Logs:     /home/eladbaum/chess_project/Project2_3/dataset_v1/logs

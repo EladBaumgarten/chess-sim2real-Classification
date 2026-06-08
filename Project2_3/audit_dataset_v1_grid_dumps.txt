@@ -1,0 +1,644 @@
+dataset_v1 stratified grid dumps
+Generated: 2026-05-15 18:31:31
+Total: 40 samples (10 per bucket, sparse/medium/dense/random/unusual)
+========================================================================
+
+--- Sample 01/40 [sparse] ---
+image: fen_0209_r1_3_east.png
+fen:   R7/6k1/4N3/3K4/5PPr/p7/8/8
+cam:   3_east  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 8
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   bP
+5   bR  wP  wP  .   .   .   .   . 
+4   .   .   .   .   wK  .   .   . 
+3   .   .   .   wN  .   .   .   . 
+2   .   bK  .   .   .   .   .   . 
+1   .   .   .   .   .   .   .   wR
+
+--- Sample 02/40 [sparse] ---
+image: fen_0228_r0_3_east.png
+fen:   6k1/8/r4KP1/4R3/3N1P2/8/8/8
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   wP  .   wN  .   .   . 
+4   .   .   .   wR  .   .   .   . 
+3   .   wP  wK  .   .   .   .   bR
+2   .   .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   .   . 
+
+--- Sample 03/40 [sparse] ---
+image: fen_0218_r0_1_overhead.png
+fen:   8/4k3/4N3/4K1P1/5P2/4R3/8/r7
+cam:   1_overhead  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   bR
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   wR  .   .   .   . 
+5   .   .   wP  .   .   .   .   . 
+4   .   wP  .   wK  .   .   .   . 
+3   .   .   .   wN  .   .   .   . 
+2   .   .   .   bK  .   .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 04/40 [sparse] ---
+image: fen_0244_r0_2_west.png
+fen:   4k3/7R/6PN/5PK1/8/8/8/1r6
+cam:   2_west  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   bR  . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   wK  wP  .   .   .   .   . 
+3   wN  wP  .   .   .   .   .   . 
+2   wR  .   .   .   .   .   .   . 
+1   .   .   .   bK  .   .   .   . 
+
+--- Sample 05/40 [sparse] ---
+image: fen_0255_r3_3_east.png
+fen:   5kN1/R7/4K3/5P2/8/8/8/8
+cam:   3_east  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 5
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   wP  .   .   .   .   . 
+3   .   .   .   wK  .   .   .   . 
+2   .   .   .   .   .   .   .   wR
+1   .   wN  bK  .   .   .   .   . 
+
+--- Sample 06/40 [sparse] ---
+image: fen_0228_r2_3_east.png
+fen:   6k1/8/r4KP1/4R3/3N1P2/8/8/8
+cam:   3_east  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   wP  .   wN  .   .   . 
+4   .   .   .   wR  .   .   .   . 
+3   .   wP  wK  .   .   .   .   bR
+2   .   .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   .   . 
+
+--- Sample 07/40 [sparse] ---
+image: fen_0212_r2_1_overhead.png
+fen:   R7/4k3/4N3/3K2P1/5P1r/p7/8/8
+cam:   1_overhead  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 8
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   bP
+5   bR  .   wP  .   .   .   .   . 
+4   .   wP  .   .   wK  .   .   . 
+3   .   .   .   wN  .   .   .   . 
+2   .   .   .   bK  .   .   .   . 
+1   .   .   .   .   .   .   .   wR
+
+--- Sample 08/40 [sparse] ---
+image: fen_0234_r1_3_east.png
+fen:   r5k1/8/4R1P1/5NK1/5P2/8/8/8
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   wP  .   .   .   .   . 
+4   .   wK  wN  .   .   .   .   . 
+3   .   wP  .   wR  .   .   .   . 
+2   .   .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   .   bR
+
+--- Sample 09/40 [sparse] ---
+image: fen_0229_r0_1_overhead.png
+fen:   6k1/8/r3RKP1/8/3N1P2/8/8/8
+cam:   1_overhead  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   wP  .   wN  .   .   . 
+4   .   .   .   .   .   .   .   . 
+3   .   wP  wK  wR  .   .   .   bR
+2   .   .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   .   . 
+
+--- Sample 10/40 [sparse] ---
+image: fen_0244_r2_2_west.png
+fen:   4k3/7R/6PN/5PK1/8/8/8/1r6
+cam:   2_west  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   bR  . 
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   wK  wP  .   .   .   .   . 
+3   wN  wP  .   .   .   .   .   . 
+2   wR  .   .   .   .   .   .   . 
+1   .   .   .   bK  .   .   .   . 
+
+--- Sample 11/40 [medium] ---
+image: fen_0333_r2_3_east.png
+fen:   8/2k1P2p/5bp1/1Bpr1p2/P7/6P1/4R1K1/8
+cam:   3_east  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 13
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   wK  .   wR  .   .   .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   wP
+4   .   .   bP  .   bR  bP  wB  . 
+3   .   bP  bB  .   .   .   .   . 
+2   bP  .   .   wP  .   bK  .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 12/40 [medium] ---
+image: fen_0307_r2_2_west.png
+fen:   1r4k1/7p/r2p2p1/2pPbp2/8/4P1P1/P1R2P2/3R1BK1
+cam:   2_west  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 18
+    a   b   c   d   e   f   g   h
+8   .   wK  wB  .   wR  .   .   . 
+7   .   .   wP  .   .   wR  .   wP
+6   .   wP  .   wP  .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   bP  bB  wP  bP  .   . 
+3   .   bP  .   .   bP  .   .   bR
+2   bP  .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   bR  . 
+
+--- Sample 13/40 [medium] ---
+image: fen_0146_r1_1_overhead.png
+fen:   3N1bk1/5R1p/6p1/p7/8/6P1/2r2P1P/5K2
+cam:   1_overhead  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 12
+    a   b   c   d   e   f   g   h
+8   .   .   wK  .   .   .   .   . 
+7   wP  .   wP  .   .   bR  .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   .   .   .   .   .   bP
+3   .   bP  .   .   .   .   .   . 
+2   bP  .   wR  .   .   .   .   . 
+1   .   bK  bB  .   wN  .   .   . 
+
+--- Sample 14/40 [medium] ---
+image: fen_0118_r0_3_east.png
+fen:   1r3rk1/p3ppbp/6p1/4P3/3B4/4R3/Pn1N1PPP/R5K1
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 20
+    a   b   c   d   e   f   g   h
+8   .   wK  .   .   .   .   .   wR
+7   wP  wP  wP  .   wN  .   bN  wP
+6   .   .   .   wR  .   .   .   . 
+5   .   .   .   .   wB  .   .   . 
+4   .   .   .   wP  .   .   .   . 
+3   .   bP  .   .   .   .   .   . 
+2   bP  bB  bP  bP  .   .   .   bP
+1   .   bK  bR  .   .   .   bR  . 
+
+--- Sample 15/40 [medium] ---
+image: fen_0339_r1_1_overhead.png
+fen:   8/6R1/6p1/kBpr1p2/P7/6P1/6K1/8
+cam:   1_overhead  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 10
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   wK  .   .   .   .   .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   wP
+4   .   .   bP  .   bR  bP  wB  bK
+3   .   bP  .   .   .   .   .   . 
+2   .   wR  .   .   .   .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 16/40 [medium] ---
+image: fen_0454_r1_2_west.png
+fen:   8/3b2k1/4Nn2/5p2/1pBP1Pp1/pP4P1/3q4/1K5Q
+cam:   2_west  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 16
+    a   b   c   d   e   f   g   h
+8   wQ  .   .   .   .   .   wK  . 
+7   .   .   .   .   bQ  .   .   . 
+6   .   wP  .   .   .   .   wP  bP
+5   .   bP  wP  .   wP  wB  bP  . 
+4   .   .   bP  .   .   .   .   . 
+3   .   .   bN  wN  .   .   .   . 
+2   .   bK  .   .   bB  .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 17/40 [medium] ---
+image: fen_0444_r2_1_overhead.png
+fen:   q7/3b2k1/4pn2/5pN1/ppBP1Pp1/1P2P1P1/1K6/Q7
+cam:   1_overhead  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 18
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   wQ
+7   .   .   .   .   .   .   wK  . 
+6   .   wP  .   wP  .   .   wP  . 
+5   .   bP  wP  .   wP  wB  bP  bP
+4   .   wN  bP  .   .   .   .   . 
+3   .   .   bN  bP  .   .   .   . 
+2   .   bK  .   .   bB  .   .   . 
+1   .   .   .   .   .   .   .   bQ
+
+--- Sample 18/40 [medium] ---
+image: fen_0314_r1_1_overhead.png
+fen:   8/5k1p/3p2p1/2pPbp2/8/3BP1P1/P1R2PK1/1r6
+cam:   1_overhead  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 16
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   bR  . 
+7   .   wK  wP  .   .   wR  .   wP
+6   .   wP  .   wP  wB  .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   bP  bB  wP  bP  .   . 
+3   .   bP  .   .   bP  .   .   . 
+2   bP  .   bK  .   .   .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 19/40 [medium] ---
+image: fen_0067_r0_2_west.png
+fen:   8/p4p2/7p/2kp2p1/P4PP1/2K1P3/7P/8
+cam:   2_west  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 12
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   wP  .   .   .   .   .   .   . 
+6   .   .   .   wP  .   wK  .   . 
+5   .   wP  wP  .   .   .   .   wP
+4   .   bP  .   .   bP  bK  .   . 
+3   bP  .   .   .   .   .   .   . 
+2   .   .   bP  .   .   .   .   bP
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 20/40 [medium] ---
+image: fen_0143_r0_1_overhead.png
+fen:   3N1b2/pR3pkp/6p1/8/8/6P1/2r2P1P/5K2
+cam:   1_overhead  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 13
+    a   b   c   d   e   f   g   h
+8   .   .   wK  .   .   .   .   . 
+7   wP  .   wP  .   .   bR  .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   .   .   .   .   .   . 
+3   .   bP  .   .   .   .   .   . 
+2   bP  bK  bP  .   .   .   wR  bP
+1   .   .   bB  .   wN  .   .   . 
+
+--- Sample 21/40 [dense] ---
+image: fen_0100_r0_3_east.png
+fen:   r2q1rk1/ppn1ppbp/2n1b1p1/4P3/2B5/1Q3N2/PP1B1PPP/RN2R1K1
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 28
+    a   b   c   d   e   f   g   h
+8   .   wK  .   wR  .   .   wN  wR
+7   wP  wP  wP  .   wB  .   wP  wP
+6   .   .   wN  .   .   .   wQ  . 
+5   .   .   .   .   .   wB  .   . 
+4   .   .   .   wP  .   .   .   . 
+3   .   bP  .   bB  .   bN  .   . 
+2   bP  bB  bP  bP  .   bN  bP  bP
+1   .   bK  bR  .   bQ  .   .   bR
+
+--- Sample 22/40 [dense] ---
+image: fen_0466_r0_1_overhead.png
+fen:   rnb1k2r/ppq2ppp/2pbpn2/3p4/3P4/4PNB1/PPPN1PPP/R2QKB1R
+cam:   1_overhead  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 32
+    a   b   c   d   e   f   g   h
+8   wR  .   wB  wK  wQ  .   .   wR
+7   wP  wP  wP  .   wN  wP  wP  wP
+6   .   wB  wN  wP  .   .   .   . 
+5   .   .   .   .   wP  .   .   . 
+4   .   .   .   .   bP  .   .   . 
+3   .   .   bN  bP  bB  bP  .   . 
+2   bP  bP  bP  .   .   bQ  bP  bP
+1   bR  .   .   bK  .   bB  bN  bR
+
+--- Sample 23/40 [dense] ---
+image: fen_0369_r1_3_east.png
+fen:   rnbqkbnr/ppp2ppp/4p3/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR
+cam:   3_east  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 32
+    a   b   c   d   e   f   g   h
+8   wR  wN  wB  wK  wQ  .   wN  wR
+7   wP  wP  wP  wP  .   wP  wP  wP
+6   .   .   .   .   .   .   .   . 
+5   .   .   wB  .   wP  .   .   . 
+4   .   .   .   .   bP  .   .   . 
+3   .   .   .   bP  .   .   .   . 
+2   bP  bP  bP  .   .   bP  bP  bP
+1   bR  bN  bB  bK  bQ  bB  bN  bR
+
+--- Sample 24/40 [dense] ---
+image: fen_0089_r1_2_west.png
+fen:   r1bqkb1r/pp2pppp/2np4/3nP3/2BP4/5N2/PP3PPP/RNBQK2R
+cam:   2_west  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 30
+    a   b   c   d   e   f   g   h
+8   wR  .   .   wK  wQ  wB  wN  wR
+7   wP  wP  wP  .   .   .   wP  wP
+6   .   .   wN  .   .   .   .   . 
+5   .   .   .   .   wP  wB  .   . 
+4   .   .   .   wP  bN  .   .   . 
+3   .   .   .   .   bP  bN  .   . 
+2   bP  bP  bP  bP  .   .   bP  bP
+1   bR  .   bB  bK  bQ  bB  .   bR
+
+--- Sample 25/40 [dense] ---
+image: fen_0282_r2_3_east.png
+fen:   rn1q1rk1/5pbp/b2p2p1/2pP1p2/8/2N1P1P1/PP3PBP/R2QK1NR
+cam:   3_east  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 27
+    a   b   c   d   e   f   g   h
+8   wR  wN  .   wK  wQ  .   .   wR
+7   wP  wB  wP  .   .   .   wP  wP
+6   .   wP  .   wP  .   wN  .   . 
+5   .   .   .   .   .   .   .   . 
+4   .   .   bP  .   wP  bP  .   . 
+3   .   bP  .   .   bP  .   .   bB
+2   bP  bB  bP  .   .   .   .   . 
+1   .   bK  bR  .   bQ  .   bN  bR
+
+--- Sample 26/40 [dense] ---
+image: fen_0035_r0_2_west.png
+fen:   r3r1k1/pp1bqpp1/1np1p2p/2Q1N3/P2P4/1B2P3/1P3PPP/2R2RK1
+cam:   2_west  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 26
+    a   b   c   d   e   f   g   h
+8   .   wK  wR  .   .   wR  .   . 
+7   wP  wP  wP  .   .   .   wP  . 
+6   .   .   .   wP  .   .   wB  . 
+5   .   .   .   .   wP  .   .   wP
+4   .   .   .   wN  .   wQ  .   . 
+3   bP  .   .   bP  .   bP  bN  . 
+2   .   bP  bP  bQ  bB  .   bP  bP
+1   .   bK  .   bR  .   .   .   bR
+
+--- Sample 27/40 [dense] ---
+image: fen_0471_r1_1_overhead.png
+fen:   r1b1k2r/p1qn1ppp/1ppbpn2/3pN3/3P1P2/2P1P1B1/PP1N2PP/R2QKB1R
+cam:   1_overhead  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 32
+    a   b   c   d   e   f   g   h
+8   wR  .   wB  wK  wQ  .   .   wR
+7   wP  wP  .   .   wN  .   wP  wP
+6   .   wB  .   wP  .   wP  .   . 
+5   .   .   wP  .   wP  .   .   . 
+4   .   .   .   wN  bP  .   .   . 
+3   .   .   bN  bP  bB  bP  bP  . 
+2   bP  bP  bP  .   bN  bQ  .   bP
+1   bR  .   .   bK  .   bB  .   bR
+
+--- Sample 28/40 [dense] ---
+image: fen_0402_r2_3_east.png
+fen:   r7/pbpn2k1/1p1qp3/3p1pp1/3P4/2P1PN2/PPQ1BPPr/2KR3R
+cam:   3_east  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 26
+    a   b   c   d   e   f   g   h
+8   wR  .   .   .   wR  wK  .   . 
+7   bR  wP  wP  wB  .   wQ  wP  wP
+6   .   .   wN  wP  .   wP  .   . 
+5   .   .   .   .   wP  .   .   . 
+4   .   bP  bP  .   bP  .   .   . 
+3   .   .   .   bP  bQ  .   bP  . 
+2   .   bK  .   .   bN  bP  bB  bP
+1   .   .   .   .   .   .   .   bR
+
+--- Sample 29/40 [dense] ---
+image: fen_0003_r0_2_west.png
+fen:   rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR
+cam:   2_west  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 32
+    a   b   c   d   e   f   g   h
+8   wR  wN  wB  wK  wQ  wB  wN  wR
+7   wP  wP  wP  wP  .   .   wP  wP
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   wP  wP  .   . 
+4   .   .   .   .   bP  .   .   . 
+3   .   .   .   .   .   .   .   . 
+2   bP  bP  bP  bP  .   bP  bP  bP
+1   bR  bN  bB  bK  bQ  bB  bN  bR
+
+--- Sample 30/40 [dense] ---
+image: fen_0022_r0_1_overhead.png
+fen:   r1b2rk1/pppnqpp1/4p2p/8/2BP4/2Q1PN2/PP3PPP/R3K2R
+cam:   1_overhead  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 26
+    a   b   c   d   e   f   g   h
+8   wR  .   .   wK  .   .   .   wR
+7   wP  wP  wP  .   .   .   wP  wP
+6   .   .   wN  wP  .   wQ  .   . 
+5   .   .   .   .   wP  wB  .   . 
+4   .   .   .   .   .   .   .   . 
+3   bP  .   .   bP  .   .   .   . 
+2   .   bP  bP  bQ  bN  bP  bP  bP
+1   .   bK  bR  .   .   bB  .   bR
+
+--- Sample 31/40 [random] ---
+image: fen_0106_r3_3_east.png
+fen:   r2q1rk1/pQ2ppbp/6p1/4P3/3n4/8/PP1B1PPP/RN2R1K1
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 23
+    a   b   c   d   e   f   g   h
+8   .   wK  .   wR  .   .   wN  wR
+7   wP  wP  wP  .   wB  .   wP  wP
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   bN  .   .   . 
+4   .   .   .   wP  .   .   .   . 
+3   .   bP  .   .   .   .   .   . 
+2   bP  bB  bP  bP  .   .   wQ  bP
+1   .   bK  bR  .   bQ  .   .   bR
+
+--- Sample 32/40 [random] ---
+image: fen_0222_r0_2_west.png
+fen:   8/4k3/4N3/4RKP1/5P2/8/8/r7
+cam:   2_west  (xform=rot180)
+hdri:  studio_small_03.exr
+pieces: 7
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   bR
+7   .   .   .   .   .   .   .   . 
+6   .   .   .   .   .   .   .   . 
+5   .   .   wP  .   .   .   .   . 
+4   .   wP  wK  wR  .   .   .   . 
+3   .   .   .   wN  .   .   .   . 
+2   .   .   .   bK  .   .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 33/40 [random] ---
+image: fen_0407_r1_3_east.png
+fen:   r7/pbp3k1/1p1qpn2/3p1pN1/3P2p1/2P1P3/PPQ1BPP1/2K4R
+cam:   3_east  (xform=rot180)
+hdri:  brown_photostudio_02.exr
+pieces: 24
+    a   b   c   d   e   f   g   h
+8   wR  .   .   .   .   wK  .   . 
+7   .   wP  wP  wB  .   wQ  wP  wP
+6   .   .   .   wP  .   wP  .   . 
+5   .   bP  .   .   wP  .   .   . 
+4   .   wN  bP  .   bP  .   .   . 
+3   .   .   bN  bP  bQ  .   bP  . 
+2   .   bK  .   .   .   bP  bB  bP
+1   .   .   .   .   .   .   .   bR
+
+--- Sample 34/40 [random] ---
+image: fen_0488_r3_2_west.png
+fen:   r1r3k1/2qn1p1p/b2bpnp1/p2pN3/1p1P1PPB/2P4Q/PPBN3P/R4RK1
+cam:   2_west  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 30
+    a   b   c   d   e   f   g   h
+8   .   wK  wR  .   .   .   .   wR
+7   wP  .   .   .   wN  wB  wP  wP
+6   wQ  .   .   .   .   wP  .   . 
+5   wB  wP  wP  .   wP  .   bP  . 
+4   .   .   .   wN  bP  .   .   bP
+3   .   bP  bN  bP  bB  .   .   bB
+2   bP  .   bP  .   bN  bQ  .   . 
+1   .   bK  .   .   .   bR  .   bR
+
+--- Sample 35/40 [random] ---
+image: fen_0270_r0_3_east.png
+fen:   rnbqk2r/pp1p1pbp/5pp1/2pP4/2P5/8/PP2PPPP/RN1QKBNR
+cam:   3_east  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 30
+    a   b   c   d   e   f   g   h
+8   wR  wN  wB  wK  wQ  .   wN  wR
+7   wP  wP  wP  wP  .   .   wP  wP
+6   .   .   .   .   .   .   .   . 
+5   .   .   .   .   .   wP  .   . 
+4   .   .   .   .   wP  bP  .   . 
+3   .   bP  bP  .   .   .   .   . 
+2   bP  bB  bP  .   bP  .   bP  bP
+1   bR  .   .   bK  bQ  bB  bN  bR
+
+--- Sample 36/40 [random] ---
+image: fen_0477_r2_2_west.png
+fen:   r4rk1/2qn1ppp/bppbpn2/p2pN3/3P1P2/2P1PQB1/PPBN2PP/R3K2R
+cam:   2_west  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 32
+    a   b   c   d   e   f   g   h
+8   wR  .   .   wK  .   .   .   wR
+7   wP  wP  .   .   wN  wB  wP  wP
+6   .   wB  wQ  wP  .   wP  .   . 
+5   .   .   wP  .   wP  .   .   . 
+4   .   .   .   wN  bP  .   .   bP
+3   .   .   bN  bP  bB  bP  bP  bB
+2   bP  bP  bP  .   bN  bQ  .   . 
+1   .   bK  bR  .   .   .   .   bR
+
+--- Sample 37/40 [random] ---
+image: fen_0492_r1_3_east.png
+fen:   r1r3k1/2qn1p1p/b3pnp1/p2pN3/1b1P1PPB/2P2R1Q/P1BN3P/R5K1
+cam:   3_east  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 28
+    a   b   c   d   e   f   g   h
+8   .   wK  .   .   .   .   .   wR
+7   wP  .   .   .   wN  wB  .   wP
+6   wQ  .   wR  .   .   wP  .   . 
+5   wB  wP  wP  .   wP  .   bB  . 
+4   .   .   .   wN  bP  .   .   bP
+3   .   bP  bN  bP  .   .   .   bB
+2   bP  .   bP  .   bN  bQ  .   . 
+1   .   bK  .   .   .   bR  .   bR
+
+--- Sample 38/40 [random] ---
+image: fen_0153_r0_2_west.png
+fen:   6k1/8/4N1p1/p1b4p/5R2/6P1/2r2P1P/5K2
+cam:   2_west  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 12
+    a   b   c   d   e   f   g   h
+8   .   .   wK  .   .   .   .   . 
+7   wP  .   wP  .   .   bR  .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   wR  .   .   .   .   . 
+4   bP  .   .   .   .   bB  .   bP
+3   .   bP  .   wN  .   .   .   . 
+2   .   .   .   .   .   .   .   . 
+1   .   bK  .   .   .   .   .   . 
+
+--- Sample 39/40 [random] ---
+image: fen_0338_r1_3_east.png
+fen:   8/7R/6p1/kBpr1p2/P7/6P1/6K1/8
+cam:   3_east  (xform=rot180)
+hdri:  entrance_hall.exr
+pieces: 10
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   .   . 
+7   .   wK  .   .   .   .   .   . 
+6   .   wP  .   .   .   .   .   . 
+5   .   .   .   .   .   .   .   wP
+4   .   .   bP  .   bR  bP  wB  bK
+3   .   bP  .   .   .   .   .   . 
+2   wR  .   .   .   .   .   .   . 
+1   .   .   .   .   .   .   .   . 
+
+--- Sample 40/40 [random] ---
+image: fen_0446_r2_3_east.png
+fen:   8/3b2k1/4pn2/5pN1/ppBP1Pp1/1P2P1P1/6q1/QK6
+cam:   3_east  (xform=rot180)
+hdri:  lebombo.exr
+pieces: 18
+    a   b   c   d   e   f   g   h
+8   .   .   .   .   .   .   wK  wQ
+7   .   bQ  .   .   .   .   .   . 
+6   .   wP  .   wP  .   .   wP  . 
+5   .   bP  wP  .   wP  wB  bP  bP
+4   .   wN  bP  .   .   .   .   . 
+3   .   .   bN  bP  .   .   .   . 
+2   .   bK  .   .   bB  .   .   . 
+1   .   .   .   .   .   .   .   . 
