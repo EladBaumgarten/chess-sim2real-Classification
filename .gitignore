@@ -13,6 +13,8 @@ corner_detection_log.csv
 # ---- 3D / rendering source assets (large binaries) ----
 *.blend
 *.blend1
+*.exr
+**/hdris/
 
 # ---- python / env junk ----
 __pycache__/
@@ -29,11 +31,13 @@ env/
 .ipynb_checkpoints/
 .claude/
 
-# ---- editor / OS junk ----
+# ---- editor / OS junk + cluster job logs ----
 .DS_Store
 Thumbs.db
 *.swp
 *.log
+*.err
+*.out
 
 # ---- trained model weights (8GB+ of checkpoints; some >100MB GitHub limit) ----
 # Regenerable by training; not needed for the code submission. We commit ONLY

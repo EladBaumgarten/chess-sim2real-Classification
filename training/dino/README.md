@@ -44,7 +44,7 @@ Outputs route through `--run_name` under `dino/`. Hard write-guard (in `train.py
 
 ```bash
 PY=~/.conda/envs/chess/bin/python
-cd /home/eladbaum/chess_project/dino
+cd /home/eladbaum/chess_project/training/dino
 
 $PY training_scripts/confirm_dino.py                                  # step 0 (no training)
 $PY -u training_scripts/train.py --mode zeroshot --run_name dino_zeroshot

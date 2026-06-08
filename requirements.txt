@@ -1,0 +1,22 @@
+# Top-level dependencies for the whole project (training, preprocessing, analysis,
+# and the submission/ inference deliverable). Tested with Python 3.9-3.11.
+#
+# For ONLY running the evaluation deliverable (predict_board), the smaller
+# submission/requirements.txt is sufficient.
+#
+# NOTE: the Blender synthetic-data generation (data_generation/) runs inside
+# Blender's bundled Python and uses `bpy`/`mathutils`, which are NOT pip-installable
+# here — they ship with Blender. They are intentionally omitted below.
+
+torch>=2.1
+torchvision>=0.16
+timm>=0.9              # DINOv2 backbone fallback (vendored copy used by submission/)
+numpy>=1.24,<2.0
+opencv-python>=4.8
+Pillow>=9.0
+scikit-learn>=1.3
+pandas>=1.5
+matplotlib>=3.6
+seaborn>=0.12
+tqdm>=4.64
+python-chess>=1.9     # FEN/PGN handling in data generation

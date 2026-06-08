@@ -55,7 +55,7 @@ READ-ONLY references.
 
 ```bash
 PY=~/.conda/envs/chess/bin/python
-cd /home/eladbaum/chess_project/convnext
+cd /home/eladbaum/chess_project/training/convnext
 
 # Step 0 — confirm ConvNeXt loads / head swap / param count
 $PY training_scripts/confirm_convnext.py
