@@ -65,3 +65,6 @@ syn_data_generation/audit_report.txt
 # ---- preprocessing: only the core dataset_v1 pipeline is tracked ----
 preprocessing/game7_orientation_diagnostics.py
 preprocessing/train_zero_shot.py
+
+# ---- results: regenerable diagnostic outputs (figures, metrics, report writeup) — kept local only ----
+results/
