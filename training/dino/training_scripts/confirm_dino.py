@@ -15,7 +15,7 @@ Run:  python dino/training_scripts/confirm_dino.py [--input_size 224]
 """
 import sys, os, argparse
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 
 import numpy as np
 import torch
@@ -115,7 +115,7 @@ print(f"  BatchNorm={bn} (expect 0)   LayerNorm={ln}")
 assert bn == 0, "unexpected BatchNorm in DINOv2"
 
 print("\n[6] Write-guard check (frozen-token run_name must abort before write) ...")
-EXP_DIR = "/home/eladbaum/chess_project/dino"
+EXP_DIR = "/home/eladbaum/chess_project/training/dino"
 _FROZEN = ("zero_shot", "stage1_10", "stage2_30", "stage3_323", "stage3_improved",
            "stage5_combined_323", "convnext")
 def guard(run_name):

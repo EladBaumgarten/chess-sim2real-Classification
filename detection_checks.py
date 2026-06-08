@@ -25,7 +25,7 @@ SYNTH_MANIFEST = "/home/eladbaum/chess_project/preprocessing/manifest.csv"
 SYNTH_IMAGES_DIR = "/home/eladbaum/chess_project/data/dataset_v1/images"
 REAL_GT_CSV = "/home/eladbaum/chess_project/data/game7_per_frame/gt.csv"
 REAL_IMAGES_DIR = "/home/eladbaum/chess_project/data/game7_per_frame/images"
-OUT_DIR = "/home/eladbaum/chess_project/ResNet18/Real_Only/plots"
+OUT_DIR = "/home/eladbaum/chess_project/training/resnet18/Real_Only/plots"
 N_FRAMES_EACH = 20  # how many frames from each dataset to analyze
 BLACK_THRESHOLD = 20  # pixel intensity below this counts as "black"
 

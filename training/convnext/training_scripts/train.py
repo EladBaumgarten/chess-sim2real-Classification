@@ -1,40 +1,37 @@
 """
-DINOv2 ViT-S/14 — third backbone in the sim-to-real comparison. ONE script, four styles
-via --mode. Mirrors convnext/training_scripts/train.py EXACTLY except for the documented
-DINO changes (model, input resize, ViT freeze scheme, linprobe mode). Data, splits,
-crop/warp pipeline, 5% forgetting probe, game7 monitor, games-2/6 verbatim eval are
-identical to the ResNet/ConvNeXt runs.
+ConvNeXt-Tiny architecture comparison — ONE script, three training styles via --mode.
 
-  --mode zeroshot : synth-only, from DINOv2-pretrained. Select on synth val -> best_synth.pt.
-  --mode stage3   : sequential FT from dino_zeroshot best_synth on real (30 manual+game4+game5).
-  --mode stage5   : combined synth+real from DINOv2-pretrained, WeightedRandomSampler 50/50.
-  --mode linprobe : backbone FROZEN all epochs, head only, on combined synth+real 50/50
-                    (canonical DINOv2 usage). Select on game7.
+Mirrors our ResNet-18 runs (zero-shot synth baseline / Stage 3 sequential FT / Stage 5
+combined) on a ConvNeXt-Tiny backbone. ONLY the backbone changes (+ an architecture-
+appropriate AdamW/cosine recipe, intentional and logged). Data, splits, crop/warp pipeline,
+the 5% forgetting probe, the game7 monitor, and the games-2/6 held-out eval are IDENTICAL
+to the ResNet runs.
 
-DINO-specific vs convnext:
-  * Model: DINOv2 ViT-S/14 (hub 'dinov2_vits14', timm fallback) -> CLS embedding (384) ->
-    Linear(384,13).
-  * Input: datasets still yield 100x100 crops (byte-identical to ResNet/ConvNeXt). A
-    transforms.Resize((INPUT,INPUT), antialias=True) is applied at the model boundary,
-    immediately before ImageNet-normalize, in train+eval+games-2/6. --input_size default 224
-    (16x16=256 tokens); assert INPUT % 14 == 0 (ViT-S/14).
-  * Freeze: Phase A freezes the whole backbone (patch_embed, 12 blocks, norm, cls_token,
-    pos_embed), trains head only; Phase B unfreezes all (discriminative LRs). LayerNorm only
-    (no BatchNorm) -> BN-freeze N/A. backbone LR default 1e-5 (ViT FT is fragile).
+  --mode zeroshot : synth-only, from ImageNet. Select on synth val. Produces best_synth.pt
+                    (the checkpoint --mode stage3 fine-tunes FROM).
+  --mode stage3   : sequential FT from the convnext_zeroshot checkpoint on real data
+                    (30 manual + game4 + game5 PGN). Select on game7 real_val.
+  --mode stage5   : combined synth+real from ImageNet, WeightedRandomSampler 50/50.
+                    Select on game7 real_val.
 
-All outputs routed through --run_name under dino/; frozen baselines (incl. convnext) are
-READ-ONLY, protected by a hard write-guard.
+Recipe (all modes): AdamW + cosine LR + weight decay. Two-phase freeze adapted to ConvNeXt:
+Phase A freezes model.features (stem + 4 stages + downsamplers), trains classifier only;
+Phase B unfreezes all with discriminative LRs (head=lr_head, backbone=lr_backbone). ConvNeXt
+uses LayerNorm — NO BatchNorm running stats, so the BN-freeze lever does not apply.
+
+All outputs routed through --run_name under convnext/; the frozen baselines
+(zero_shot, stage1_10, stage2_30, stage3_323, stage3_improved, stage5_combined_323) are
+READ-ONLY references, protected by a hard write-guard.
 
 Usage:
-  python train.py --mode zeroshot --run_name dino_zeroshot
-  python train.py --mode stage3   --run_name dino_stage3
-  python train.py --mode stage5   --run_name dino_stage5
-  python train.py --mode linprobe --run_name dino_linprobe
+  python train.py --mode zeroshot --run_name convnext_zeroshot
+  python train.py --mode stage3   --run_name convnext_stage3
+  python train.py --mode stage5   --run_name convnext_stage5
 """
 # %% [Cell 1 — Imports + args + seeds]
 import sys
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 
 import argparse
 import csv
@@ -52,7 +49,7 @@ from PIL import Image
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset, ConcatDataset, WeightedRandomSampler, Subset
-import torchvision.transforms as T
+from torchvision.models import convnext_tiny, ConvNeXt_Tiny_Weights
 from torchvision.transforms import ColorJitter, RandomAffine, InterpolationMode
 import matplotlib
 matplotlib.use("Agg", force=True)
@@ -63,42 +60,35 @@ from preprocessing.fen_to_grid import fen_to_label_grid
 from preprocessing.verify_woelflein_crops import (
     warp_chessboard_image, crop_square, find_corners, ChessboardNotLocatedException,
 )
-# Verbatim games-2/6 eval harness (reproduced ResNet s00's 0.9085). RealGameDataset + metrics
-# are architecture-agnostic; we reuse them and supply a DINO eval loop with the resize inserted
-# (rescan's RealGameDataset ignores its transform arg and yields 100x100, so the resize must
-# live in the eval loop — the single documented eval change).
+# Verbatim games-2/6 eval harness (the one that reproduced ResNet s00's 0.9085 exactly).
+# RealGameDataset/eval_loader/metrics are architecture-agnostic; only build_model differs,
+# and we supply our own ConvNeXt build_model below.
 from rescan_checkpoint_selection import (
     RealGameDataset as EvalRealGameDataset,
+    eval_loader as verbatim_eval_loader,
     metrics as verbatim_metrics,
 )
 
 
 def _parse_args():
-    p = argparse.ArgumentParser(description="DINOv2 ViT-S/14 — 4 training styles via --mode.")
-    p.add_argument("--mode", required=True, choices=["zeroshot", "stage3", "stage5", "linprobe"])
+    p = argparse.ArgumentParser(description="ConvNeXt-Tiny — 3 training styles via --mode.")
+    p.add_argument("--mode", required=True, choices=["zeroshot", "stage3", "stage5"])
     p.add_argument("--run_name", required=True, type=str,
-                   help="output subdir under dino/{checkpoints,results,plots}/")
+                   help="output subdir under convnext/{checkpoints,results,plots}/")
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--input_size", type=int, default=224,
-                   help="ViT input size; must be divisible by 14. 224 -> 16x16=256 tokens.")
+    # Recipe knobs (defaults filled per-mode below if left as None).
     p.add_argument("--epochs", type=int, default=None)
     p.add_argument("--warmup_epochs", type=int, default=None, help="Phase-A (head-only) epochs.")
     p.add_argument("--patience", type=int, default=None, help="early-stop patience on game7 (0=off).")
     p.add_argument("--batch_size", type=int, default=64)
     p.add_argument("--lr_head", type=float, default=1e-4)
     p.add_argument("--lr_backbone", type=float, default=None,
-                   help="Phase-B backbone LR (default 1e-5; ViT FT is fragile). Unused for linprobe.")
+                   help="Phase-B backbone LR. Default per-mode: zeroshot 1e-5; stage3/stage5 3e-5 "
+                        "(the larger ConvNeXt backbone would underfit the ~20k-square real set at 1e-5).")
     p.add_argument("--weight_decay", type=float, default=0.05)
     p.add_argument("--zeroshot_ckpt", type=str,
-                   default="/home/eladbaum/chess_project/dino/checkpoints/dino_zeroshot/best_synth.pt",
+                   default="/home/eladbaum/chess_project/training/convnext/checkpoints/convnext_zeroshot/best_synth.pt",
                    help="source weights for --mode stage3.")
-    # Split flags — defaults reproduce the original stage3/stage5 split byte-identically.
-    p.add_argument("--train_pgn_games", type=str, default="4,5",
-                   help="comma-sep PGN games added to real training (default 4,5; new split 4,5,2).")
-    p.add_argument("--val_game", type=str, default="game7",
-                   help="real game used as val/selection monitor (default game7; new split game6).")
-    p.add_argument("--test_games", type=str, default="2,6",
-                   help="comma-sep held-out test games (default 2,6; new split 7).")
     args, _ = p.parse_known_args()
     return args
 
@@ -107,16 +97,14 @@ ARGS = _parse_args()
 MODE = ARGS.mode
 RUN_NAME = ARGS.run_name
 SEED = int(ARGS.seed)
-INPUT_SIZE = int(ARGS.input_size)
-assert INPUT_SIZE % 14 == 0, f"--input_size must be divisible by 14 (ViT-S/14); got {INPUT_SIZE}"
 
-# Per-mode recipe defaults (overridable via CLI). backbone LR 1e-5 (lower than convnext's
-# 3e-5 — ViT fine-tuning is more fragile). linprobe: backbone frozen all epochs (no Phase B).
+# Per-mode recipe defaults (overridable via CLI). lr_backbone: zeroshot 1e-5 (synth is the
+# easy task, overfit isn't the risk); stage3/stage5 3e-5 (the ~28M ConvNeXt backbone would
+# underfit the ~20k-square real set at 1e-5 — a recipe artifact, not an architecture verdict).
 _DEFAULTS = {
     "zeroshot": dict(epochs=10, warmup_epochs=1, patience=0, lr_backbone=1e-5),
-    "stage3":   dict(epochs=20, warmup_epochs=2, patience=6, lr_backbone=1e-5),
-    "stage5":   dict(epochs=20, warmup_epochs=2, patience=6, lr_backbone=1e-5),
-    "linprobe": dict(epochs=20, warmup_epochs=0, patience=6, lr_backbone=1e-5),  # backbone frozen throughout
+    "stage3":   dict(epochs=20, warmup_epochs=2, patience=6, lr_backbone=3e-5),
+    "stage5":   dict(epochs=20, warmup_epochs=2, patience=6, lr_backbone=3e-5),
 }[MODE]
 NUM_EPOCHS = ARGS.epochs if ARGS.epochs is not None else _DEFAULTS["epochs"]
 WARMUP_EPOCHS = ARGS.warmup_epochs if ARGS.warmup_epochs is not None else _DEFAULTS["warmup_epochs"]
@@ -125,8 +113,7 @@ BATCH_SIZE = int(ARGS.batch_size)
 LR_HEAD = float(ARGS.lr_head)
 LR_BACKBONE = float(ARGS.lr_backbone) if ARGS.lr_backbone is not None else _DEFAULTS["lr_backbone"]
 WEIGHT_DECAY = float(ARGS.weight_decay)
-FREEZE_ALL = (MODE == "linprobe")            # backbone frozen for all epochs
-SELECT_ON = "synth_val" if MODE == "zeroshot" else f"{ARGS.val_game}_real_val"
+SELECT_ON = "synth_val" if MODE == "zeroshot" else "game7_real_val"
 
 random.seed(SEED)
 np.random.seed(SEED)
@@ -134,10 +121,10 @@ torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"[config] mode={MODE}  run_name={RUN_NAME}  seed={SEED}  device={DEVICE}  input={INPUT_SIZE}")
+print(f"[config] mode={MODE}  run_name={RUN_NAME}  seed={SEED}  device={DEVICE}")
 print(f"[config] epochs={NUM_EPOCHS}  warmup(phaseA)={WARMUP_EPOCHS}  patience={EARLY_STOP_PATIENCE}  "
-      f"batch={BATCH_SIZE}  lr_head={LR_HEAD}  lr_backbone={'frozen' if FREEZE_ALL else LR_BACKBONE}  "
-      f"wd={WEIGHT_DECAY}  select_on={SELECT_ON}")
+      f"batch={BATCH_SIZE}  lr_head={LR_HEAD}  lr_backbone={LR_BACKBONE}  wd={WEIGHT_DECAY}  "
+      f"select_on={SELECT_ON}")
 if torch.cuda.is_available():
     print(f"[config] GPU: {torch.cuda.get_device_name(0)}")
 print("\033[92m✓ Cell 1 — Imports + args + seeds — OK\033[0m")
@@ -148,32 +135,30 @@ PROJECT_ROOT = "/home/eladbaum/chess_project"
 
 REAL_LABELS_CSV = f"{PROJECT_ROOT}/data/real_labels.csv"
 REAL_IMAGES_ROOT = f"{PROJECT_ROOT}/data"
-# Split driven by CLI flags; defaults (4,5 / game7 / 2,6) == original stage3/stage5 split.
-TRAIN_PGN_GAMES = [int(x) for x in ARGS.train_pgn_games.split(",")]
-VAL_GAME = ARGS.val_game                                   # val/selection monitor (default game7)
-HELD_OUT_GAMES = [int(x) for x in ARGS.test_games.split(",")]   # held-out test (default 2,6)
-VAL_GT_CSV = f"{PROJECT_ROOT}/data/{VAL_GAME}_per_frame/gt.csv"
-VAL_DIR = f"{PROJECT_ROOT}/data/{VAL_GAME}_per_frame/images"
+GAME7_DIR = f"{PROJECT_ROOT}/data/game7_per_frame/images"
+GAME7_GT_CSV = f"{PROJECT_ROOT}/data/game7_per_frame/gt.csv"
+HELD_OUT_GAMES = [2, 6]
+TRAIN_PGN_GAMES = [4, 5]
 
 SYNTH_DATASET_DIR = f"{PROJECT_ROOT}/data/dataset_v1/images"
 SYNTH_MANIFEST_PATH = f"{PROJECT_ROOT}/scripts/manifest.csv"
 SYNTH_CORNERS_PATH = f"{PROJECT_ROOT}/scripts/corners.json"
 
-EXP_DIR = f"{PROJECT_ROOT}/dino"
+EXP_DIR = f"{PROJECT_ROOT}/convnext"
 CHECKPOINTS_DIR = f"{EXP_DIR}/checkpoints/{RUN_NAME}"
 RESULTS_DIR = f"{EXP_DIR}/results/{RUN_NAME}"
 PLOTS_DIR = f"{EXP_DIR}/plots/{RUN_NAME}"
 PREDS_DIR = f"{RESULTS_DIR}/predictions"
 
-# --- HARD WRITE-GUARD: every output dir must resolve under dino/ and must NOT name any
-# frozen-baseline directory (incl. the completed convnext experiment). Mirrors convnext's guard.
+# --- HARD WRITE-GUARD: every output dir must resolve under convnext/ and must
+# NOT name any frozen-baseline directory. Mirrors stage3_improved's guard.
 _FROZEN_TOKENS = ("zero_shot", "stage1_10", "stage2_30", "stage3_323",
-                  "stage3_improved", "stage5_combined_323", "convnext")
+                  "stage3_improved", "stage5_combined_323")
 for _name, _d in [("CHECKPOINTS_DIR", CHECKPOINTS_DIR), ("RESULTS_DIR", RESULTS_DIR),
                   ("PLOTS_DIR", PLOTS_DIR), ("PREDS_DIR", PREDS_DIR)]:
     _abs = os.path.realpath(_d)
     assert _abs.startswith(os.path.realpath(EXP_DIR) + os.sep), (
-        f"WRITE-GUARD: {_name}={_abs} is not under dino/ ({EXP_DIR}). Aborting.")
+        f"WRITE-GUARD: {_name}={_abs} is not under convnext/ ({EXP_DIR}). Aborting.")
     for _tok in _FROZEN_TOKENS:
         assert _tok not in _abs, (
             f"WRITE-GUARD: {_name}={_abs} names a frozen-baseline path ('{_tok}'). Aborting.")
@@ -185,17 +170,15 @@ os.makedirs(PREDS_DIR, exist_ok=True)
 
 SYNTH_MONITOR_FRAC = 0.05
 NUM_WORKERS = 4
-SYNTH_BATCH_FRAC = 0.5            # stage5/linprobe: target synth fraction per batch
-NUM_SAMPLES_PER_EPOCH = 100_000   # stage5/linprobe: WeightedRandomSampler draws/epoch
+SYNTH_BATCH_FRAC = 0.5            # stage5: target synth fraction per batch
+NUM_SAMPLES_PER_EPOCH = 100_000   # stage5: WeightedRandomSampler draws/epoch
 
 IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 IMAGENET_MEAN_DEV = IMAGENET_MEAN.to(DEVICE)
 IMAGENET_STD_DEV = IMAGENET_STD.to(DEVICE)
-RESIZE = T.Resize((INPUT_SIZE, INPUT_SIZE), antialias=True)  # inserted before normalize
 
 NUM_CLASSES = 13
-EMBED_DIM = 384
 CLASS_NAMES = ["White Pawn", "White Rook", "White Knight", "White Bishop", "White Queen",
                "White King", "Black Pawn", "Black Rook", "Black Knight", "Black Bishop",
                "Black Queen", "Black King", "Empty"]
@@ -206,8 +189,11 @@ print(f"checkpoints: {CHECKPOINTS_DIR}\nresults:     {RESULTS_DIR}\nplots:      
 print("\033[92m✓ Cell 2 — Config + write-guard — OK\033[0m")
 
 
-# %% [Cell 3 — Augmentation (identical to convnext)]
+# %% [Cell 3 — Augmentation (per-mode, ported verbatim from the ResNet recipes)]
+# zero-shot: color jitter only (ResNet zero-shot params 0.2/0.2/0.2/0.05).
+# stage3/stage5: stronger — jitter @0.7 -> shear @0.8 (±8°) -> noise @0.5 (std=0.015).
 ZS_COLOR_JITTER = ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05)
+
 COLOR_JITTER_APPLY_PROB = 0.7
 SHEAR_APPLY_PROB = 0.8
 NOISE_APPLY_PROB = 0.5
@@ -219,12 +205,12 @@ FT_AFFINE_SHEAR = RandomAffine(degrees=0, translate=(0.04, 0.04), scale=(0.95, 1
 
 
 def zeroshot_transform(crop_rgb_uint8):
-    """HWC uint8 RGB -> HWC uint8 RGB. Color jitter only (resize happens at the model boundary)."""
+    """HWC uint8 RGB -> HWC uint8 RGB. Color jitter only (mirrors ResNet zero-shot aug)."""
     return np.array(ZS_COLOR_JITTER(Image.fromarray(crop_rgb_uint8)))
 
 
 def ft_transform(crop_rgb_uint8):
-    """HWC uint8 RGB -> HWC uint8 RGB. jitter@0.7 -> shear@0.8 -> noise@0.5 (resize at boundary)."""
+    """HWC uint8 RGB -> HWC uint8 RGB. jitter@0.7 -> shear@0.8 -> noise@0.5 (Stage 3/5)."""
     img = Image.fromarray(crop_rgb_uint8)
     if random.random() < COLOR_JITTER_APPLY_PROB:
         img = FT_COLOR_JITTER(img)
@@ -242,9 +228,10 @@ print(f"[aug] train transform = {'zeroshot (jitter only)' if MODE=='zeroshot' el
 print("\033[92m✓ Cell 3 — Augmentation — OK\033[0m")
 
 
-# %% [Cell 4 — Real-image datasets (verbatim from convnext; yield 100x100 crops)]
+# %% [Cell 4 — Real-image datasets (ported verbatim from stage3_improved Cell 4/5)]
 class ManualLabelsDataset(Dataset):
-    """Real training set from data/real_labels.csv. One sample per (frame × square)."""
+    """Real training set from data/real_labels.csv. image_name is relative to data/.
+    Per-image find_corners + OOB fallback + corner caching. One sample per (frame × square)."""
     CORNER_OOB_TOLERANCE = 8
 
     def __init__(self, manifest_df, images_root, transform=None):
@@ -298,7 +285,7 @@ class ManualLabelsDataset(Dataset):
 
 
 class RealGameDataset(Dataset):
-    """Per-frame × per-square dataset for one full game's gt.csv (verbatim)."""
+    """Per-frame × per-square dataset for one full game's gt.csv (verbatim stage3 Cell 5)."""
     CORNER_OOB_TOLERANCE = 8
 
     def __init__(self, gt_csv_path, images_dir, game_name, transform=None):
@@ -353,10 +340,12 @@ print("\033[92m✓ Cell 4 — Dataset classes — OK\033[0m")
 
 
 # %% [Cell 5 — Build datasets per mode + the 5% forgetting-probe slice]
-real_val_dataset = RealGameDataset(VAL_GT_CSV, VAL_DIR, game_name=VAL_GAME, transform=None)
-print(f"{VAL_GAME} real_val (selection): {len(real_val_dataset):,} squares "
+# game7 monitor (real_val): used for selection in stage3/stage5, logged-only in zeroshot.
+real_val_dataset = RealGameDataset(GAME7_GT_CSV, GAME7_DIR, game_name="game7", transform=None)
+print(f"game7 real_val: {len(real_val_dataset):,} squares "
       f"({real_val_dataset.manifest['image_name'].nunique()} frames)")
 
+# 5% slice of dataset_v1 — the forgetting probe (identical selection to the ResNet runs).
 synth_manifest = pd.read_csv(SYNTH_MANIFEST_PATH)
 unique_synth_imgs = sorted(synth_manifest["source_image"].unique())
 slice_rng = random.Random(SEED)
@@ -372,6 +361,8 @@ print(f"synth_monitor (5% slice, seed={SEED}): {n_slice} images, {len(synth_moni
 synth_val_dataset = None  # only built for zeroshot (selection signal)
 
 if MODE == "zeroshot":
+    # Full synth, split 90/10 BY SOURCE-IMAGE (project rule; cleaner than the ResNet
+    # crop-level split — only affects synth-val checkpoint selection, not the 2/6 number).
     split_rng = random.Random(SEED)
     imgs = list(unique_synth_imgs)
     split_rng.shuffle(imgs)
@@ -410,19 +401,21 @@ else:
     if MODE == "stage3":
         train_dataset = real_train_dataset
         train_sampler = None
-    else:  # stage5 OR linprobe — combined synth + real, WeightedRandomSampler 50/50, 100k/epoch
+    else:  # stage5 — combined synth + real, WeightedRandomSampler 50/50, 100k/epoch
         synth_train_dataset = ChessSquareDataset(synth_manifest, SYNTH_CORNERS_PATH,
                                                  dataset_dir=SYNTH_DATASET_DIR, transform=TRAIN_TRANSFORM)
         n_synth = len(synth_train_dataset)
         n_real = len(real_train_dataset)
+        # ConcatDataset: synth first [0, n_synth), real second [n_synth, n_synth+n_real).
         train_dataset = ConcatDataset([synth_train_dataset, real_train_dataset])
         w_per_synth = SYNTH_BATCH_FRAC / n_synth
         w_per_real = (1.0 - SYNTH_BATCH_FRAC) / n_real
         sample_weights = torch.tensor([w_per_synth] * n_synth + [w_per_real] * n_real, dtype=torch.double)
         train_sampler = WeightedRandomSampler(weights=sample_weights,
                                               num_samples=NUM_SAMPLES_PER_EPOCH, replacement=True)
-        print(f"{MODE} combined: synth={n_synth:,} + real={n_real:,}; sampler 50/50, "
-              f"{NUM_SAMPLES_PER_EPOCH:,} draws/epoch")
+        print(f"stage5 combined: synth={n_synth:,} + real={n_real:,}; sampler 50/50, "
+              f"{NUM_SAMPLES_PER_EPOCH:,} draws/epoch "
+              f"(~{NUM_SAMPLES_PER_EPOCH*0.5/n_real:.1f}× per real square/epoch)")
 
 print("\033[92m✓ Cell 5 — Datasets — OK\033[0m")
 
@@ -442,7 +435,9 @@ else:
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
                               num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=True,
                               worker_init_fn=_worker_init_fn, drop_last=False)
-# Eval loaders: persistent_workers=False (avoid stacking workers across loaders on a 6-core box).
+# Eval loaders use persistent_workers=False: with 3-4 loaders alive at once on a 6-core box,
+# persistent eval workers stack up (4 per loader) and thrash CPU. Non-persistent eval workers
+# are torn down between eval passes, leaving cores free for the train loader.
 real_val_loader = DataLoader(real_val_dataset, batch_size=BATCH_SIZE, shuffle=False,
                              num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=False,
                              worker_init_fn=_worker_init_fn)
@@ -458,46 +453,19 @@ print("\033[92m✓ Cell 6 — DataLoaders — OK\033[0m")
 
 
 # %% [Cell 7 — Model + freeze helpers + load source weights]
-DINO_LOAD_PATH = None  # 'hub' or 'timm', set in build_model
-
-
-class DinoClassifier(nn.Module):
-    """DINOv2 ViT-S/14 backbone -> CLS embedding (384) -> Linear(384, NUM_CLASSES)."""
-    def __init__(self, backbone, embed_dim=EMBED_DIM, num_classes=NUM_CLASSES):
-        super().__init__()
-        self.backbone = backbone
-        self.head = nn.Linear(embed_dim, num_classes)
-
-    def forward(self, x):
-        feat = self.backbone(x)            # (B, 384) CLS embedding
-        if isinstance(feat, (tuple, list)):
-            feat = feat[0]
-        return self.head(feat)
-
-
-def build_model():
-    """DINOv2 ViT-S/14 pretrained backbone + fresh 13-class head. Try torch.hub, fall back to timm.
-    Callers that need a specific checkpoint load_state_dict afterward (weights overwritten)."""
-    global DINO_LOAD_PATH
-    backbone = None
-    try:
-        backbone = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14")
-        DINO_LOAD_PATH = "hub:dinov2_vits14"
-    except Exception as e:
-        print(f"[load] torch.hub dinov2_vits14 failed ({type(e).__name__}: {e}); falling back to timm.")
-        import timm
-        backbone = timm.create_model("vit_small_patch14_dinov2.lvd142m",
-                                     pretrained=True, num_classes=0, img_size=INPUT_SIZE)
-        DINO_LOAD_PATH = "timm:vit_small_patch14_dinov2.lvd142m"
-    return DinoClassifier(backbone)
+def build_model(pretrained):
+    """ConvNeXt-Tiny; classifier[2] (Linear 768->1000) swapped to 768->13."""
+    weights = ConvNeXt_Tiny_Weights.IMAGENET1K_V1 if pretrained else None
+    m = convnext_tiny(weights=weights)
+    m.classifier[2] = nn.Linear(m.classifier[2].in_features, NUM_CLASSES)
+    return m
 
 
 def freeze_backbone(model):
-    """Phase A / linprobe: freeze the whole backbone (patch_embed, blocks, norm, cls_token,
-    pos_embed); train the head only."""
-    for p in model.backbone.parameters():
+    """Phase A: freeze model.features (stem + 4 stages + downsamplers); train classifier only."""
+    for p in model.features.parameters():
         p.requires_grad = False
-    for p in model.head.parameters():
+    for p in model.classifier.parameters():
         p.requires_grad = True
 
 
@@ -506,32 +474,27 @@ def unfreeze_all(model):
         p.requires_grad = True
 
 
-SOURCE = {"zeroshot": "DINOv2-pretrained", "stage3": ARGS.zeroshot_ckpt,
-          "stage5": "DINOv2-pretrained", "linprobe": "DINOv2-pretrained"}[MODE]
-model = build_model().to(DEVICE)
+SOURCE = {"zeroshot": "ImageNet", "stage3": ARGS.zeroshot_ckpt, "stage5": "ImageNet"}[MODE]
 if MODE == "stage3":
     assert os.path.exists(ARGS.zeroshot_ckpt), (
         f"stage3 source checkpoint not found: {ARGS.zeroshot_ckpt}. Run --mode zeroshot first.")
+    model = build_model(pretrained=False).to(DEVICE)
     src = torch.load(ARGS.zeroshot_ckpt, map_location=DEVICE, weights_only=False)
     missing, unexpected = model.load_state_dict(src["model_state_dict"], strict=True)
     assert not missing and not unexpected, f"state_dict mismatch: missing={missing}, unexpected={unexpected}"
-    print(f"[stage3] loaded dino_zeroshot weights from {ARGS.zeroshot_ckpt} "
+    print(f"[stage3] loaded convnext_zeroshot weights from {ARGS.zeroshot_ckpt} "
           f"(epoch {src.get('epoch')}, synth_val_acc={src.get('synth_val_acc', float('nan'))})")
 else:
-    print(f"[{MODE}] built DINOv2 ViT-S/14 ({DINO_LOAD_PATH}) + fresh head -> {NUM_CLASSES}")
+    model = build_model(pretrained=True).to(DEVICE)
+    print(f"[{MODE}] built ConvNeXt-Tiny from ImageNet weights (head -> {NUM_CLASSES})")
 
 n_total = sum(p.numel() for p in model.parameters())
-N_PATCHES = (INPUT_SIZE // 14) ** 2
-print(f"[model] DINOv2 ViT-S/14 total params: {n_total:,}  |  {N_PATCHES} patch tokens @ {INPUT_SIZE}px")
+print(f"[model] ConvNeXt-Tiny total params: {n_total:,}")
 print("\033[92m✓ Cell 7 — Model + source weights — OK\033[0m")
 
 
-# %% [Cell 8 — Helpers: resize+normalize / train / eval]
-def prep(x):
-    """Move to device, RESIZE to INPUT (antialias) then ImageNet-normalize. The resize is the
-    single DINO pipeline change vs convnext; bilinear-resize commutes with the affine normalize."""
-    x = x.to(DEVICE, non_blocking=True)
-    x = RESIZE(x)
+# %% [Cell 8 — Helpers: normalize / train / eval]
+def imagenet_normalize(x):
     return (x - IMAGENET_MEAN_DEV) / IMAGENET_STD_DEV
 
 
@@ -540,7 +503,7 @@ def train_one_epoch(model, loader, criterion, optimizer, print_every=100):
     total_loss = total_correct = total_count = 0
     t0 = time.perf_counter()
     for i, (xb, yb) in enumerate(loader, 1):
-        xb = prep(xb)
+        xb = imagenet_normalize(xb.to(DEVICE, non_blocking=True))
         yb = yb.to(DEVICE, non_blocking=True)
         optimizer.zero_grad()
         logits = model(xb)
@@ -564,7 +527,7 @@ def evaluate(model, loader):
     all_preds, all_labels = [], []
     crit = nn.CrossEntropyLoss()
     for xb, yb in loader:
-        xb = prep(xb)
+        xb = imagenet_normalize(xb.to(DEVICE, non_blocking=True))
         yb = yb.to(DEVICE, non_blocking=True)
         logits = model(xb)
         loss = crit(logits, yb)
@@ -578,18 +541,6 @@ def evaluate(model, loader):
     return (total_loss / max(total_count, 1), total_correct / max(total_count, 1),
             np.concatenate(all_preds) if all_preds else np.array([], dtype=np.int64),
             np.concatenate(all_labels) if all_labels else np.array([], dtype=np.int64))
-
-
-@torch.no_grad()
-def dino_eval_loader(model, loader):
-    """Games-2/6 eval: verbatim crops (EvalRealGameDataset) + resize/normalize (prep) + argmax.
-    Same as the convnext verbatim eval_loader but with the DINO resize inserted."""
-    model.eval()
-    preds, labels = [], []
-    for xb, yb in loader:
-        preds.append(model(prep(xb)).argmax(1).cpu().numpy())
-        labels.append(yb.numpy())
-    return np.concatenate(preds), np.concatenate(labels)
 
 
 def per_class_accuracy(preds, labels):
@@ -632,39 +583,36 @@ print("=" * 64 + "\nSMOKE TEST\n" + "=" * 64)
 xb, yb = next(iter(train_loader))
 print(f"  train batch: x={tuple(xb.shape)} {xb.dtype} range=[{xb.min():.3f},{xb.max():.3f}]  "
       f"y={tuple(yb.shape)} {yb.dtype} range=[{int(yb.min())},{int(yb.max())}]")
-assert xb.shape[1:] == (3, 100, 100) and xb.dtype == torch.float32  # loader yields 100x100; resize in prep
+assert xb.shape[1:] == (3, 100, 100) and xb.dtype == torch.float32
 assert yb.dtype == torch.int64 and 0 <= int(yb.min()) and int(yb.max()) <= 12
 assert torch.isfinite(xb).all()
+# augmentation fires
 s1, _ = train_dataset[0]; s2, _ = train_dataset[0]
 aug_diff = float(np.abs(s1.numpy() - s2.numpy()).mean())
 print(f"  aug fires: mean|s1-s2| reading train_dataset[0] twice = {aug_diff:.4f}")
 assert aug_diff > 0.01, "augmentation not firing"
-_xp = prep(xb)
-print(f"  prep -> {tuple(_xp.shape)} (resized to {INPUT_SIZE})")
-assert _xp.shape[2:] == (INPUT_SIZE, INPUT_SIZE), "resize did not produce INPUT x INPUT"
-logits = model(_xp)
+# forward pass
+logits = model(imagenet_normalize(xb.to(DEVICE)))
 assert logits.shape == (xb.size(0), NUM_CLASSES) and torch.isfinite(logits).all()
 print(f"  forward: logits {tuple(logits.shape)} finite ✓")
 
+# Pre-FT (before-training) eval on the loaded source weights — baseline for forgetting Δ.
 print("  [pre-train eval on source weights]")
 PRE_SYNTH_MONITOR_ACC = evaluate(model, synth_monitor_loader)[1]
 PRE_REAL_VAL_ACC = evaluate(model, real_val_loader)[1]
 print(f"    synth_monitor (5% v1) before: {PRE_SYNTH_MONITOR_ACC:.4f}")
-print(f"    {VAL_GAME} real_val    before: {PRE_REAL_VAL_ACC:.4f}")
+print(f"    game7 real_val        before: {PRE_REAL_VAL_ACC:.4f}")
 if MODE == "stage3":
     assert PRE_SYNTH_MONITOR_ACC > 0.95, (
-        f"dino_zeroshot scored {PRE_SYNTH_MONITOR_ACC:.4f} on its own synth slice; expected >0.95.")
-else:
-    # DINOv2-pretrained + fresh random head: not chess-trained. Allow up to 0.85 (a random head
-    # on frozen features can lean toward the dominant 'empty' class); only catch a mistakenly
-    # loaded chess-trained checkpoint (~0.99).
-    assert 0.0 < PRE_SYNTH_MONITOR_ACC < 0.85, (
-        f"DINOv2-init synth_monitor pre-train acc={PRE_SYNTH_MONITOR_ACC:.4f}; expected well below trained.")
+        f"convnext_zeroshot scored {PRE_SYNTH_MONITOR_ACC:.4f} on its own synth slice; expected >0.95.")
+else:  # zeroshot/stage5 start from ImageNet — chess-naive, ~chance
+    assert 0.0 < PRE_SYNTH_MONITOR_ACC < 0.5, (
+        f"ImageNet-init synth_monitor pre-train acc={PRE_SYNTH_MONITOR_ACC:.4f}; expected ~chance.")
 print("Smoke test passed.")
 print("\033[92m✓ Cell 9 — Smoke test — OK\033[0m")
 
 
-# %% [Cell 10 — Optimizer + training loop]
+# %% [Cell 10 — Optimizer (Phase A: head only, AdamW, no scheduler) + training loop]
 criterion = nn.CrossEntropyLoss()
 
 
@@ -676,9 +624,10 @@ def make_phaseA_optimizer(model):
 
 def make_phaseB_optimizer_and_sched(model, remaining_epochs):
     unfreeze_all(model)
+    backbone = [p for n, p in model.named_parameters() if n.startswith("features.")]
+    head = [p for n, p in model.named_parameters() if not n.startswith("features.")]
     opt = torch.optim.AdamW(
-        [{"params": model.backbone.parameters(), "lr": LR_BACKBONE},
-         {"params": model.head.parameters(), "lr": LR_HEAD}],
+        [{"params": backbone, "lr": LR_BACKBONE}, {"params": head, "lr": LR_HEAD}],
         weight_decay=WEIGHT_DECAY)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(
         opt, T_max=max(remaining_epochs, 1), eta_min=0.01 * LR_HEAD)
@@ -686,15 +635,10 @@ def make_phaseB_optimizer_and_sched(model, remaining_epochs):
 
 
 optimizer = make_phaseA_optimizer(model)
-if FREEZE_ALL:
-    # linprobe: head-only over ALL epochs with a cosine schedule; backbone never unfreezes.
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS, eta_min=0.01 * LR_HEAD)
-else:
-    scheduler = None
+scheduler = None
 phase_b_started = False
 n_head = sum(p.numel() for p in model.parameters() if p.requires_grad)
-print(f"Phase A: AdamW head-only ({n_head:,} trainable params) lr={LR_HEAD} wd={WEIGHT_DECAY}"
-      f"{' + cosine (linprobe, frozen backbone all epochs)' if FREEZE_ALL else '; no sched'}.")
+print(f"Phase A: AdamW head-only ({n_head:,} trainable params) lr={LR_HEAD} wd={WEIGHT_DECAY}; no sched.")
 
 CKPT_BEST = f"{CHECKPOINTS_DIR}/{'best_synth.pt' if MODE=='zeroshot' else 'best_real.pt'}"
 CKPT_BEST_SYNTH_MONITOR = f"{CHECKPOINTS_DIR}/best_synth_monitor.pt"
@@ -710,8 +654,8 @@ stop_reason = "completed_all_epochs"
 t_total = time.perf_counter()
 
 for epoch in range(1, NUM_EPOCHS + 1):
-    phase = "A" if (FREEZE_ALL or epoch <= WARMUP_EPOCHS) else "B"
-    if not FREEZE_ALL and phase == "B" and not phase_b_started:
+    phase = "A" if epoch <= WARMUP_EPOCHS else "B"
+    if phase == "B" and not phase_b_started:
         optimizer, scheduler = make_phaseB_optimizer_and_sched(model, NUM_EPOCHS - WARMUP_EPOCHS)
         phase_b_started = True
         print(f"[phase A->B] unfroze all; AdamW backbone lr={LR_BACKBONE}, head lr={LR_HEAD}; "
@@ -733,7 +677,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
     select_acc = sv_acc if MODE == "zeroshot" else rv_acc
     dt = time.perf_counter() - t_ep
-    print(f"  epoch {epoch}: train={train_acc:.4f}  synth_mon={sm_acc:.4f}  {VAL_GAME}={rv_acc:.4f}  "
+    print(f"  epoch {epoch}: train={train_acc:.4f}  synth_mon={sm_acc:.4f}  game7={rv_acc:.4f}  "
           + (f"synth_val={sv_acc:.4f}  " if MODE == "zeroshot" else "")
           + f"select({SELECT_ON})={select_acc:.4f}  ({dt:.0f}s)")
 
@@ -742,7 +686,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
            "synth_monitor_acc": sm_acc, "synth_val_acc": sv_acc,
            "real_val_loss": rv_loss, "real_val_acc": rv_acc, "epoch_time_s": dt}
     for short, acc in zip(CLASS_SHORT, rv_per_class):
-        row[f"{VAL_GAME}_acc_{short}"] = acc
+        row[f"game7_acc_{short}"] = acc
     training_log.append(row)
     pd.DataFrame(training_log).to_csv(LOG_CSV, index=False)
 
@@ -780,7 +724,7 @@ print("\033[92m✓ Cell 10 — Training loop — OK\033[0m")
 
 # %% [Cell 11 — Load best checkpoint for end-of-run evaluation]
 best_ckpt = torch.load(CKPT_BEST, map_location=DEVICE, weights_only=False)
-model = build_model().to(DEVICE)
+model = build_model(pretrained=False).to(DEVICE)
 model.load_state_dict(best_ckpt["model_state_dict"])
 model.eval()
 print(f"[eval] loaded best checkpoint (epoch {best_ckpt['epoch']}, {SELECT_ON}={best_select_acc:.4f})")
@@ -791,15 +735,14 @@ log_df = pd.read_csv(LOG_CSV)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 ax1.plot(log_df["epoch"], log_df["train_acc"], "-o", ms=4, label="train")
 ax1.plot(log_df["epoch"], log_df["synth_monitor_acc"], "-s", ms=4, label="synth_monitor (5% v1)")
-ax1.plot(log_df["epoch"], log_df["real_val_acc"], "--^", lw=2, ms=4, label=f"{VAL_GAME} real_val")
+ax1.plot(log_df["epoch"], log_df["real_val_acc"], "--^", lw=2, ms=4, label="game7 real_val")
 if MODE == "zeroshot":
     ax1.plot(log_df["epoch"], log_df["synth_val_acc"], "-d", ms=4, label="synth_val (selection)")
-if not FREEZE_ALL:
-    ax1.axvline(WARMUP_EPOCHS + 0.5, color="r", ls=":", alpha=0.6, label="phase A->B")
+ax1.axvline(WARMUP_EPOCHS + 0.5, color="r", ls=":", alpha=0.6, label="phase A->B")
 ax1.set_xlabel("epoch"); ax1.set_ylabel("accuracy"); ax1.set_ylim(-0.02, 1.02)
-ax1.legend(loc="lower right"); ax1.grid(alpha=0.3); ax1.set_title(f"DINOv2 {MODE} — accuracy")
+ax1.legend(loc="lower right"); ax1.grid(alpha=0.3); ax1.set_title(f"ConvNeXt {MODE} — accuracy")
 ax2.plot(log_df["epoch"], log_df["train_loss"], "-o", ms=4, label="train")
-ax2.plot(log_df["epoch"], log_df["real_val_loss"], "--^", lw=2, ms=4, label=f"{VAL_GAME} real_val")
+ax2.plot(log_df["epoch"], log_df["real_val_loss"], "--^", lw=2, ms=4, label="game7 real_val")
 ax2.set_xlabel("epoch"); ax2.set_ylabel("loss"); ax2.legend(); ax2.grid(alpha=0.3); ax2.set_title("loss")
 plt.tight_layout(); plt.savefig(f"{PLOTS_DIR}/training_curves.png", dpi=120); plt.close()
 print(f"wrote {PLOTS_DIR}/training_curves.png")
@@ -813,6 +756,9 @@ sm_piece = float((sm_preds[piece_mask] == sm_labels[piece_mask]).mean()) if piec
 plot_confusion_matrix(confusion_matrix_np(sm_preds, sm_labels),
                       f"synth_monitor (5% v1) — {MODE} acc={sm_acc:.4f}",
                       f"{PLOTS_DIR}/synth_monitor_cm.png", cmap="Blues")
+# Interpretation: stage3 forgetting = how much synth ability is lost after real FT.
+# zeroshot/stage5 start from ImageNet (~chance), so Δ is acquisition, not forgetting — logged
+# for comparability; the meaningful retention number for stage5 is vs convnext_zeroshot.
 forgetting = {
     "n_samples": int(len(sm_preds)), "slice_frac": SYNTH_MONITOR_FRAC,
     "source_weights": SOURCE,
@@ -821,9 +767,8 @@ forgetting = {
     "forgetting_delta": sm_acc - PRE_SYNTH_MONITOR_ACC,
     "piece_only_acc": sm_piece, "loss": sm_loss,
     "per_class_acc": {CLASS_SHORT[c]: sm_per_class[c] for c in range(NUM_CLASSES)},
-    "note": ("Δ vs source weights. zeroshot/stage5/linprobe source=DINOv2-pretrained (~chance on "
-             "synth) so Δ is acquisition not forgetting; stage3 source=dino_zeroshot so Δ is true "
-             "forgetting. linprobe backbone is frozen so synth ability is fully retained."),
+    "note": ("Δ vs source weights. zeroshot/stage5 source=ImageNet (~chance) so Δ is "
+             "acquisition not forgetting; stage3 source=convnext_zeroshot so Δ is true forgetting."),
 }
 Path(f"{RESULTS_DIR}/synth_monitor_results.json").write_text(json.dumps(forgetting, indent=2))
 np.save(f"{PREDS_DIR}/synth_monitor_preds.npy", sm_preds.astype(np.int64))
@@ -838,24 +783,26 @@ g7_per_class = per_class_accuracy(rv_preds, rv_labels)
 pm = rv_labels != 12
 g7_piece = float((rv_preds[pm] == rv_labels[pm]).mean()) if pm.any() else float("nan")
 plot_confusion_matrix(confusion_matrix_np(rv_preds, rv_labels),
-                      f"{VAL_GAME} (monitor) — {MODE} acc={rv_acc:.4f}", f"{PLOTS_DIR}/{VAL_GAME}_cm.png", cmap="Reds")
+                      f"game7 (monitor) — {MODE} acc={rv_acc:.4f}", f"{PLOTS_DIR}/game7_cm.png", cmap="Reds")
 game7_results = {"n_squares": int(len(rv_preds)), "per_square_acc": rv_acc,
                  "per_square_acc_before": PRE_REAL_VAL_ACC, "piece_only_acc": g7_piece, "loss": rv_loss,
-                 "val_game": VAL_GAME,
                  "per_class_acc": {CLASS_SHORT[c]: g7_per_class[c] for c in range(NUM_CLASSES)}}
-Path(f"{RESULTS_DIR}/{VAL_GAME}_results.json").write_text(json.dumps(game7_results, indent=2))
-np.save(f"{PREDS_DIR}/{VAL_GAME}_preds.npy", rv_preds.astype(np.int64))
-np.save(f"{PREDS_DIR}/{VAL_GAME}_labels.npy", rv_labels.astype(np.int64))
-print(f"{VAL_GAME} per-square={rv_acc:.4f}  piece-only={g7_piece:.4f}")
+Path(f"{RESULTS_DIR}/game7_results.json").write_text(json.dumps(game7_results, indent=2))
+np.save(f"{PREDS_DIR}/game7_preds.npy", rv_preds.astype(np.int64))
+np.save(f"{PREDS_DIR}/game7_labels.npy", rv_labels.astype(np.int64))
+print(f"game7 per-square={rv_acc:.4f}  piece-only={g7_piece:.4f}")
 
 
-# %% [Cell 15 — Held-out games 2/6 eval (verbatim crops + metrics; resize via dino_eval_loader)]
+# %% [Cell 15 — Held-out games 2/6 eval (VERBATIM harness — the comparable number)]
+# Uses the imported RealGameDataset/eval_loader/metrics from rescan_checkpoint_selection.py
+# (the harness that reproduced ResNet s00's 0.9085 exactly). Only build_model differs;
+# we pass our ConvNeXt model into the identical crop+normalize+argmax path.
 all_p, all_y, per_game = [], [], {}
 for N in HELD_OUT_GAMES:
     ds = EvalRealGameDataset(f"{PROJECT_ROOT}/data/game{N}_per_frame/gt.csv",
                              f"{PROJECT_ROOT}/data/game{N}_per_frame/images", f"game{N}", transform=None)
     ld = DataLoader(ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True)
-    p, y = dino_eval_loader(model, ld)
+    p, y = verbatim_eval_loader(model, ld)
     persq_g, piece_g, empty_g = verbatim_metrics(p, y)
     per_game[f"game{N}"] = {"n_frames": int(ds.manifest["image_name"].nunique()),
                             "n_squares": int(len(p)), "per_square": persq_g, "piece_only": piece_g}
@@ -871,60 +818,51 @@ preds = np.concatenate(all_p); labels = np.concatenate(all_y)
 persq, piece, empty = verbatim_metrics(preds, labels)
 held_per_class = per_class_accuracy(preds, labels)
 games_2_6 = {
-    "model": f"DINOv2-ViT-S/14 {MODE}", "run_name": RUN_NAME, "source_weights": SOURCE,
-    "input_size": INPUT_SIZE,
+    "model": f"ConvNeXt-Tiny {MODE}", "run_name": RUN_NAME, "source_weights": SOURCE,
     "test_partition": [f"game{N}" for N in HELD_OUT_GAMES],
-    "eval_path": "verbatim rescan RealGameDataset + metrics; resize-to-INPUT then ImageNet-normalize "
-                 "in dino_eval_loader (same crops/metric as ResNet/ConvNeXt, + DINO resize)",
+    "eval_path": "verbatim rescan_checkpoint_selection RealGameDataset/eval_loader/metrics "
+                 "(same harness that reproduced ResNet s00's 0.9085)",
     "n_squares": int(len(preds)), "per_square_acc": persq, "piece_only_acc": piece, "empty_acc": empty,
     "per_class_acc": {CLASS_SHORT[c]: held_per_class[c] for c in range(NUM_CLASSES)},
     "per_game": per_game,
 }
-# Held-out filename: default split keeps the original "games_2_6_*" names byte-identical;
-# a custom --test_games (e.g. the new split's game7) writes "heldout_gameN_*" instead.
-HELDOUT_NAME = "games_2_6" if HELD_OUT_GAMES == [2, 6] else "heldout_" + "_".join(f"game{N}" for N in HELD_OUT_GAMES)
-_test_label = "games 2/6" if HELD_OUT_GAMES == [2, 6] else "+".join(f"game{N}" for N in HELD_OUT_GAMES)
-Path(f"{RESULTS_DIR}/{HELDOUT_NAME}_eval.json").write_text(json.dumps(games_2_6, indent=2))
+Path(f"{RESULTS_DIR}/games_2_6_eval.json").write_text(json.dumps(games_2_6, indent=2))
 plot_confusion_matrix(confusion_matrix_np(preds, labels),
-                      f"{_test_label} (held-out) — {MODE} per-sq={persq:.4f}",
-                      f"{PLOTS_DIR}/{HELDOUT_NAME}_cm.png", cmap="Reds")
-print(f"\n=== HELD-OUT {_test_label} — DINOv2 {MODE} ===")
+                      f"games 2/6 (held-out) — {MODE} per-sq={persq:.4f}",
+                      f"{PLOTS_DIR}/games_2_6_cm.png", cmap="Reds")
+print(f"\n=== GAMES 2/6 (held-out) — ConvNeXt {MODE} ===")
 print(f"  per-square={persq:.4f}  piece-only={piece:.4f}  empty={empty:.4f}")
 
 
 # %% [Cell 16 — recipe.json (reportable) + summary]
+# Backbone feature-map resolution at our 100x100 input (recorded for the caveat below).
+with torch.no_grad():
+    _fmap = model.features(imagenet_normalize(torch.rand(1, 3, 100, 100, device=DEVICE)))
+_feat_hw = f"{_fmap.shape[2]}x{_fmap.shape[3]}"
 recipe = {
-    "arch": "DINOv2-ViT-S/14", "mode": MODE, "run_name": RUN_NAME, "seed": SEED,
-    "param_count": int(n_total), "source_weights": SOURCE, "dino_load_path": DINO_LOAD_PATH,
-    "input_resolution": f"{INPUT_SIZE}x{INPUT_SIZE}", "patch_tokens": int(N_PATCHES),
-    "resolution_note": (f"100x100 crops (byte-identical to ResNet/ConvNeXt) resized to {INPUT_SIZE} "
-                        f"(ViT-S/14 -> {N_PATCHES} patch tokens) immediately before ImageNet-normalize, "
-                        f"in both train and eval. 224 is native DINOv2 resolution."),
+    "arch": "ConvNeXt-Tiny", "mode": MODE, "run_name": RUN_NAME, "seed": SEED,
+    "param_count": int(n_total), "source_weights": SOURCE,
+    "input_resolution": "100x100", "backbone_feature_map": f"{_feat_hw} ({_fmap.shape[2]*_fmap.shape[3]} tokens, 768 ch)",
+    "resolution_caveat": ("ConvNeXt-Tiny evaluated at 100x100 for input-consistency with ResNet-18 "
+                          "(the published 0.5138/0.9085/0.9160 all live on the 100x100 path); this is "
+                          "well below its 224x224 pretraining resolution (3x3 vs 7x7 feature map) and "
+                          "may understate its potential — a native-resolution comparison is left to future work."),
     "optimizer": "AdamW", "betas": [0.9, 0.999], "weight_decay": WEIGHT_DECAY,
-    "lr_schedule": "cosine, eta_min=0.01*lr_head", "lr_head": LR_HEAD,
-    "lr_backbone": ("frozen (linprobe)" if FREEZE_ALL else LR_BACKBONE),
-    "epochs": NUM_EPOCHS, "warmup_phaseA_epochs": (None if FREEZE_ALL else WARMUP_EPOCHS),
-    "early_stop_patience": EARLY_STOP_PATIENCE, "batch_size": BATCH_SIZE,
-    "freeze_scheme": ("linprobe: backbone (patch_embed/blocks/norm/cls_token/pos_embed) FROZEN all "
-                      "epochs, head only." if FREEZE_ALL else
-                      "Phase A: freeze whole backbone, train head; Phase B: unfreeze all, discriminative "
-                      "LRs. LayerNorm only (no BatchNorm) -> BN-freeze N/A."),
+    "lr_schedule": "cosine (phase B), eta_min=0.01*lr_head", "lr_head": LR_HEAD, "lr_backbone": LR_BACKBONE,
+    "epochs": NUM_EPOCHS, "warmup_phaseA_epochs": WARMUP_EPOCHS, "early_stop_patience": EARLY_STOP_PATIENCE,
+    "batch_size": BATCH_SIZE,
+    "freeze_scheme": "Phase A: freeze model.features (stem+4 stages+downsamplers), train classifier; "
+                     "Phase B: unfreeze all, discriminative LRs. No BatchNorm (LayerNorm) -> BN-freeze N/A.",
     "augmentation": "color-jitter only (zeroshot)" if MODE == "zeroshot"
                     else "jitter@0.7 -> shear@0.8(±8°) -> noise@0.5(std=0.015)",
     "selection_metric": SELECT_ON, "selected_epoch": int(best_select_epoch),
-    "sampler": ("WeightedRandomSampler 50/50 synth/real, 100k draws/epoch"
-                if MODE in ("stage5", "linprobe") else "shuffle (natural distribution)"),
+    "sampler": ("WeightedRandomSampler 50/50 synth/real, 100k draws/epoch" if MODE == "stage5"
+                else "shuffle (natural distribution)"),
     "data": {"zeroshot": "full dataset_v1 synth (90/10 by-image split for synth-val selection)",
              "stage3": "30 manual + game4 + game5 PGN (~323 frames real)",
-             "stage5": "dataset_v1 synth + 30 manual + game4 + game5 PGN (combined)",
-             "linprobe": "dataset_v1 synth + 30 manual + game4 + game5 PGN (combined, frozen backbone)"}[MODE],
-    # Split metadata (defaults reproduce the original split; new mini-experiment overrides via flags).
-    "split": {"train_manual_games": [8, 9, 10, 11], "train_pgn_games": TRAIN_PGN_GAMES,
-              "val_game": VAL_GAME, "test_games": HELD_OUT_GAMES},
-    "results": {"heldout_per_square": persq, "heldout_piece_only": piece, "heldout_empty": empty,
-                "heldout_games": HELD_OUT_GAMES, "val_game": VAL_GAME, "val_per_square": rv_acc,
-                "game7_per_square": rv_acc,  # kept for build_report back-compat (original runs: val==game7)
-                "forgetting_delta": sm_acc - PRE_SYNTH_MONITOR_ACC},
+             "stage5": "dataset_v1 synth + 30 manual + game4 + game5 PGN (combined)"}[MODE],
+    "results": {"games_2_6_per_square": persq, "games_2_6_piece_only": piece,
+                "game7_per_square": rv_acc, "forgetting_delta": sm_acc - PRE_SYNTH_MONITOR_ACC},
 }
 Path(f"{RESULTS_DIR}/recipe.json").write_text(json.dumps(recipe, indent=2))
 print(f"wrote {RESULTS_DIR}/recipe.json")

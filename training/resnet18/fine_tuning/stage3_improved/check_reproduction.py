@@ -12,8 +12,8 @@ import argparse
 import json
 from pathlib import Path
 
-EXP_DIR = Path("/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
-BASELINE_DIR = Path("/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_323/results")
+EXP_DIR = Path("/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
+BASELINE_DIR = Path("/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_323/results")
 CLASS_SHORT = ["wP", "wR", "wN", "wB", "wQ", "wK",
                "bP", "bR", "bN", "bB", "bQ", "bK", "empty"]
 

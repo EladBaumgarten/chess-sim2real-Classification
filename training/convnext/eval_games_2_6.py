@@ -9,7 +9,7 @@ Usage:
 """
 import sys, os, json, argparse
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 import numpy as np
 import torch
 import torch.nn as nn

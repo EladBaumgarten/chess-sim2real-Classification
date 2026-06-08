@@ -8,7 +8,7 @@ import sys, os, json
 sys.path.insert(0, "/home/eladbaum/chess_project")
 import csv as _csv
 
-EXP_DIR = "/home/eladbaum/chess_project/dino"
+EXP_DIR = "/home/eladbaum/chess_project/training/dino"
 RESULTS = f"{EXP_DIR}/results"
 
 # Published reference numbers (games 2/6) — hard-coded.

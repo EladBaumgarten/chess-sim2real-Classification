@@ -34,7 +34,7 @@ Usage:
 # %% [Cell 1 — Imports + args + seeds]
 import sys
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 
 import argparse
 import csv
@@ -90,7 +90,7 @@ def _parse_args():
                    help="Phase-B backbone LR (default 1e-5; ViT FT is fragile). Unused for linprobe.")
     p.add_argument("--weight_decay", type=float, default=0.05)
     p.add_argument("--zeroshot_ckpt", type=str,
-                   default="/home/eladbaum/chess_project/dino/checkpoints/dino_zeroshot/best_synth.pt",
+                   default="/home/eladbaum/chess_project/training/dino/checkpoints/dino_zeroshot/best_synth.pt",
                    help="source weights for --mode stage3.")
     # Split flags — defaults reproduce the original stage3/stage5 split byte-identically.
     p.add_argument("--train_pgn_games", type=str, default="4,5",
@@ -99,19 +99,6 @@ def _parse_args():
                    help="real game used as val/selection monitor (default game7; new split game6).")
     p.add_argument("--test_games", type=str, default="2,6",
                    help="comma-sep held-out test games (default 2,6; new split 7).")
-    # --- Real-only ablation flags (additive; defaults reproduce combined behavior) ---
-    p.add_argument("--no_synth", action="store_true",
-                   help="REAL-ONLY ablation: remove synth from training; uniform RandomSampler over "
-                        "real with num_samples=NUM_SAMPLES_PER_EPOCH. Everything else unchanged.")
-    p.add_argument("--output_root", type=str, default=None,
-                   help="if set, write checkpoints/results/plots under {output_root}/ instead of "
-                        "dino/{checkpoints,results,plots}/{run_name}/.")
-    p.add_argument("--diag_game7", type=int, default=1, choices=[0, 1],
-                   help="per-epoch game7 diagnostic eval (1=on, diagnostic-only; 0=off).")
-    p.add_argument("--grad_accum", type=int, default=1,
-                   help="gradient accumulation steps. effective batch = batch_size * grad_accum. "
-                        "Use to fit large effective batch on small GPUs (LayerNorm model -> numerically "
-                        "equivalent to a single large batch).")
     args, _ = p.parse_known_args()
     return args
 
@@ -135,7 +122,6 @@ NUM_EPOCHS = ARGS.epochs if ARGS.epochs is not None else _DEFAULTS["epochs"]
 WARMUP_EPOCHS = ARGS.warmup_epochs if ARGS.warmup_epochs is not None else _DEFAULTS["warmup_epochs"]
 EARLY_STOP_PATIENCE = ARGS.patience if ARGS.patience is not None else _DEFAULTS["patience"]
 BATCH_SIZE = int(ARGS.batch_size)
-GRAD_ACCUM = max(1, int(ARGS.grad_accum))  # effective batch = BATCH_SIZE * GRAD_ACCUM
 LR_HEAD = float(ARGS.lr_head)
 LR_BACKBONE = float(ARGS.lr_backbone) if ARGS.lr_backbone is not None else _DEFAULTS["lr_backbone"]
 WEIGHT_DECAY = float(ARGS.weight_decay)
@@ -150,7 +136,7 @@ torch.cuda.manual_seed_all(SEED)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"[config] mode={MODE}  run_name={RUN_NAME}  seed={SEED}  device={DEVICE}  input={INPUT_SIZE}")
 print(f"[config] epochs={NUM_EPOCHS}  warmup(phaseA)={WARMUP_EPOCHS}  patience={EARLY_STOP_PATIENCE}  "
-      f"batch={BATCH_SIZE}x{GRAD_ACCUM}accum(eff={BATCH_SIZE*GRAD_ACCUM})  lr_head={LR_HEAD}  lr_backbone={'frozen' if FREEZE_ALL else LR_BACKBONE}  "
+      f"batch={BATCH_SIZE}  lr_head={LR_HEAD}  lr_backbone={'frozen' if FREEZE_ALL else LR_BACKBONE}  "
       f"wd={WEIGHT_DECAY}  select_on={SELECT_ON}")
 if torch.cuda.is_available():
     print(f"[config] GPU: {torch.cuda.get_device_name(0)}")
@@ -174,16 +160,9 @@ SYNTH_MANIFEST_PATH = f"{PROJECT_ROOT}/scripts/manifest.csv"
 SYNTH_CORNERS_PATH = f"{PROJECT_ROOT}/scripts/corners.json"
 
 EXP_DIR = f"{PROJECT_ROOT}/dino"
-if ARGS.output_root:
-    # Self-contained ablation tree: {output_root}/{checkpoints,results,plots}/ (no per-run subdir).
-    _ROOT = ARGS.output_root if os.path.isabs(ARGS.output_root) else f"{PROJECT_ROOT}/{ARGS.output_root}"
-    CHECKPOINTS_DIR = f"{_ROOT}/checkpoints"
-    RESULTS_DIR = f"{_ROOT}/results"
-    PLOTS_DIR = f"{_ROOT}/plots"
-else:
-    CHECKPOINTS_DIR = f"{EXP_DIR}/checkpoints/{RUN_NAME}"
-    RESULTS_DIR = f"{EXP_DIR}/results/{RUN_NAME}"
-    PLOTS_DIR = f"{EXP_DIR}/plots/{RUN_NAME}"
+CHECKPOINTS_DIR = f"{EXP_DIR}/checkpoints/{RUN_NAME}"
+RESULTS_DIR = f"{EXP_DIR}/results/{RUN_NAME}"
+PLOTS_DIR = f"{EXP_DIR}/plots/{RUN_NAME}"
 PREDS_DIR = f"{RESULTS_DIR}/predictions"
 
 # --- HARD WRITE-GUARD: every output dir must resolve under dino/ and must NOT name any
@@ -431,15 +410,6 @@ else:
     if MODE == "stage3":
         train_dataset = real_train_dataset
         train_sampler = None
-    elif ARGS.no_synth:  # REAL-ONLY ABLATION — synth removed; uniform RandomSampler over real, 100k/epoch
-        from torch.utils.data import RandomSampler
-        n_real = len(real_train_dataset)
-        train_dataset = real_train_dataset
-        train_sampler = RandomSampler(train_dataset, replacement=True, num_samples=NUM_SAMPLES_PER_EPOCH)
-        print(f"\033[93m[REAL-ONLY ABLATION] synthetic samples in training = 0\033[0m")
-        print(f"  real train squares = {n_real:,}  (manual 8-11 + PGN {TRAIN_PGN_GAMES})")
-        print(f"  sampler = uniform RandomSampler over REAL, replacement=True, "
-              f"num_samples={NUM_SAMPLES_PER_EPOCH:,}/epoch (epoch length pinned to match combined)")
     else:  # stage5 OR linprobe — combined synth + real, WeightedRandomSampler 50/50, 100k/epoch
         synth_train_dataset = ChessSquareDataset(synth_manifest, SYNTH_CORNERS_PATH,
                                                  dataset_dir=SYNTH_DATASET_DIR, transform=TRAIN_TRANSFORM)
@@ -565,29 +535,24 @@ def prep(x):
     return (x - IMAGENET_MEAN_DEV) / IMAGENET_STD_DEV
 
 
-def train_one_epoch(model, loader, criterion, optimizer, print_every=100, grad_accum=1):
+def train_one_epoch(model, loader, criterion, optimizer, print_every=100):
     model.train()
     total_loss = total_correct = total_count = 0
     t0 = time.perf_counter()
-    n_batches = len(loader)
-    optimizer.zero_grad()
     for i, (xb, yb) in enumerate(loader, 1):
         xb = prep(xb)
         yb = yb.to(DEVICE, non_blocking=True)
+        optimizer.zero_grad()
         logits = model(xb)
         loss = criterion(logits, yb)
-        # Scale by 1/grad_accum so summed grads over grad_accum micro-batches == mean over the
-        # effective batch (exact for mean-reduction CE; DINOv2 is LayerNorm-only, no batch-stat dep).
-        (loss / grad_accum).backward()
-        if i % grad_accum == 0 or i == n_batches:   # step every grad_accum micro-batches (+ final remainder)
-            optimizer.step()
-            optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         bs = yb.size(0)
-        total_loss += loss.item() * bs              # report the TRUE (unscaled) loss
+        total_loss += loss.item() * bs
         total_correct += (logits.argmax(1) == yb).sum().item()
         total_count += bs
         if i % print_every == 0:
-            print(f"    batch {i:4d}/{n_batches}  loss={total_loss/total_count:.4f}  "
+            print(f"    batch {i:4d}/{len(loader)}  loss={total_loss/total_count:.4f}  "
                   f"acc={total_correct/total_count:.4f}  ({time.perf_counter()-t0:.0f}s)")
     return total_loss / max(total_count, 1), total_correct / max(total_count, 1)
 
@@ -742,30 +707,6 @@ best_select_epoch = -1
 best_synth_monitor_acc = -1.0
 epochs_since_best = 0
 stop_reason = "completed_all_epochs"
-
-# === DIAGNOSTIC ONLY (dino_combindedGame6 selection-confound study) ============
-# game7 is the HELD-OUT TEST. Here it is evaluated every epoch PURELY for post-hoc
-# curve analysis and a separate best-by-game7 checkpoint. It NEVER feeds selection,
-# gradients, or early-stopping: select_acc stays game2_real_val, the optimizer never
-# sees game7, and the early-stop counter (epochs_since_best) keys only off select_acc.
-# Built once so the per-frame corner cache persists across epochs (fast after ep1).
-DIAG_GAME7 = bool(ARGS.diag_game7)
-DIAG_GAME7_LOADER = None
-CKPT_BEST_GAME7_DIAG = f"{CHECKPOINTS_DIR}/best_game7_diag.pt"
-best_game7_persq = -1.0
-best_game7_epoch = -1
-if DIAG_GAME7:
-    DIAG_GAME7_DS = EvalRealGameDataset(
-        f"{PROJECT_ROOT}/data/game7_per_frame/gt.csv",
-        f"{PROJECT_ROOT}/data/game7_per_frame/images", "game7", transform=None)
-    DIAG_GAME7_LOADER = DataLoader(DIAG_GAME7_DS, batch_size=BATCH_SIZE, shuffle=False,
-                                   num_workers=NUM_WORKERS, pin_memory=True)
-    print(f"[diag] per-epoch game7 logging ON ({len(DIAG_GAME7_DS):,} squares) — "
-          f"diagnostic only, NOT in selection/gradient/early-stop.")
-else:
-    print("[diag] per-epoch game7 logging OFF (--diag_game7 0).")
-# ==============================================================================
-
 t_total = time.perf_counter()
 
 for epoch in range(1, NUM_EPOCHS + 1):
@@ -779,7 +720,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
     print(f"\n{'='*64}\nEpoch {epoch}/{NUM_EPOCHS}  phase={phase}  "
           f"lr={optimizer.param_groups[0]['lr']:.2e}\n{'='*64}")
     t_ep = time.perf_counter()
-    train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, grad_accum=GRAD_ACCUM)
+    train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer)
 
     sm_loss, sm_acc, _, _ = evaluate(model, synth_monitor_loader)
     rv_loss, rv_acc, rv_preds, rv_labels = evaluate(model, real_val_loader)
@@ -802,24 +743,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
            "real_val_loss": rv_loss, "real_val_acc": rv_acc, "epoch_time_s": dt}
     for short, acc in zip(CLASS_SHORT, rv_per_class):
         row[f"{VAL_GAME}_acc_{short}"] = acc
-
-    # --- DIAGNOSTIC ONLY: game7 held-out eval, logged for post-hoc curve analysis.
-    # Runs AFTER the optimizer step; result is never read by select_acc / early-stop.
-    if DIAG_GAME7:
-        g7_preds, g7_labels = dino_eval_loader(model, DIAG_GAME7_LOADER)
-        g7_persq, g7_piece, g7_empty = verbatim_metrics(g7_preds, g7_labels)
-        row["game7_diag_per_square"] = g7_persq
-        row["game7_diag_piece_only"] = g7_piece
-        row["game7_diag_empty"] = g7_empty
-        print(f"  [diag] game7 (NOT selected): per-sq={g7_persq:.4f}  piece-only={g7_piece:.4f}")
-        if g7_persq > best_game7_persq:
-            best_game7_persq = g7_persq
-            best_game7_epoch = epoch
-            torch.save({"epoch": epoch, "phase": phase, "model_state_dict": model.state_dict(),
-                        "game7_diag_per_square": g7_persq, "game7_diag_piece_only": g7_piece,
-                        "diagnostic_only": True}, CKPT_BEST_GAME7_DIAG)
-            print(f"  -> [diag] NEW BEST game7 per-sq={g7_persq:.4f} @ ep{epoch} (saved best_game7_diag.pt)")
-
     training_log.append(row)
     pd.DataFrame(training_log).to_csv(LOG_CSV, index=False)
 
@@ -868,16 +791,7 @@ log_df = pd.read_csv(LOG_CSV)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 ax1.plot(log_df["epoch"], log_df["train_acc"], "-o", ms=4, label="train")
 ax1.plot(log_df["epoch"], log_df["synth_monitor_acc"], "-s", ms=4, label="synth_monitor (5% v1)")
-ax1.plot(log_df["epoch"], log_df["real_val_acc"], "--^", lw=2, ms=4, label=f"{VAL_GAME} real_val (SELECTION)")
-if "game7_diag_per_square" in log_df.columns:
-    ax1.plot(log_df["epoch"], log_df["game7_diag_per_square"], "-P", lw=2, ms=5,
-             color="tab:red", label="game7 per-sq (DIAG, not selected)")
-    ax1.plot(log_df["epoch"], log_df["game7_diag_piece_only"], ":P", lw=2, ms=4,
-             color="tab:purple", label="game7 piece-only (DIAG)")
-    if best_game7_epoch > 0:
-        ax1.axvline(best_game7_epoch, color="tab:red", ls="--", alpha=0.4, label=f"best game7 @ ep{best_game7_epoch}")
-    if best_select_epoch > 0:
-        ax1.axvline(best_select_epoch, color="tab:blue", ls="--", alpha=0.4, label=f"game2-selected @ ep{best_select_epoch}")
+ax1.plot(log_df["epoch"], log_df["real_val_acc"], "--^", lw=2, ms=4, label=f"{VAL_GAME} real_val")
 if MODE == "zeroshot":
     ax1.plot(log_df["epoch"], log_df["synth_val_acc"], "-d", ms=4, label="synth_val (selection)")
 if not FREEZE_ALL:
@@ -977,42 +891,6 @@ plot_confusion_matrix(confusion_matrix_np(preds, labels),
 print(f"\n=== HELD-OUT {_test_label} — DINOv2 {MODE} ===")
 print(f"  per-square={persq:.4f}  piece-only={piece:.4f}  empty={empty:.4f}")
 
-# === SELECTION-CONFOUND CHECK (dino_combindedGame6) ===========================
-# (a) game2-SELECTED checkpoint (best_real.pt, already loaded above) on game7 = persq/piece.
-# (b) best-by-game7 DIAGNOSTIC checkpoint on game7. Compare; flag if (b) >> (a).
-sel_g7_persq, sel_g7_piece, sel_epoch = persq, piece, int(best_ckpt["epoch"])
-_diag = torch.load(CKPT_BEST_GAME7_DIAG, map_location=DEVICE, weights_only=False)
-_m = build_model().to(DEVICE); _m.load_state_dict(_diag["model_state_dict"]); _m.eval()
-_bp, _by = dino_eval_loader(_m, DIAG_GAME7_LOADER)
-best_g7_persq, best_g7_piece, _ = verbatim_metrics(_bp, _by)
-STAGE55_BASELINE = {"per_square": 0.9849, "piece_only": 0.9689}
-confound = {
-    "note": "game7 used for DIAGNOSIS only; selection metric was game2_real_val (patience disabled).",
-    "selected_by": SELECT_ON,
-    "game2_selected": {"epoch": sel_epoch, "game7_per_square": sel_g7_persq,
-                       "game7_piece_only": sel_g7_piece},
-    "best_by_game7_diag": {"epoch": int(_diag["epoch"]), "game7_per_square": best_g7_persq,
-                           "game7_piece_only": best_g7_piece},
-    "stage5_5_baseline": STAGE55_BASELINE,
-    "selection_gap_per_square": best_g7_persq - sel_g7_persq,
-    "selection_gap_piece_only": best_g7_piece - sel_g7_piece,
-    "vs_stage5_5": {"selected_minus_baseline_persq": sel_g7_persq - STAGE55_BASELINE["per_square"],
-                    "best_minus_baseline_persq": best_g7_persq - STAGE55_BASELINE["per_square"]},
-}
-Path(f"{RESULTS_DIR}/selection_confound_game7.json").write_text(json.dumps(confound, indent=2))
-print("\n=== SELECTION-CONFOUND CHECK (game7 diagnostic) ===")
-print(f"  game2-SELECTED ckpt (ep{sel_epoch}): game7 per-sq={sel_g7_persq:.4f}  piece-only={sel_g7_piece:.4f}")
-print(f"  best-by-GAME7 ckpt  (ep{int(_diag['epoch'])}): game7 per-sq={best_g7_persq:.4f}  piece-only={best_g7_piece:.4f}")
-print(f"  stage5_5 baseline:            per-sq={STAGE55_BASELINE['per_square']:.4f}  piece-only={STAGE55_BASELINE['piece_only']:.4f}")
-print(f"  selection gap (best-by-game7 − game2-selected): per-sq={confound['selection_gap_per_square']:+.4f}  "
-      f"piece-only={confound['selection_gap_piece_only']:+.4f}")
-if confound["selection_gap_per_square"] > 0.01 or confound["selection_gap_piece_only"] > 0.01:
-    print("\033[93m  [FLAG] best-by-game7 substantially > game2-selected — the game2 selection metric "
-          "undercut the result; report the best-by-game7 number explicitly.\033[0m")
-else:
-    print("  [ok] game2-selection and best-by-game7 agree (no material selection confound).")
-# ==============================================================================
-
 
 # %% [Cell 16 — recipe.json (reportable) + summary]
 recipe = {
@@ -1027,7 +905,6 @@ recipe = {
     "lr_backbone": ("frozen (linprobe)" if FREEZE_ALL else LR_BACKBONE),
     "epochs": NUM_EPOCHS, "warmup_phaseA_epochs": (None if FREEZE_ALL else WARMUP_EPOCHS),
     "early_stop_patience": EARLY_STOP_PATIENCE, "batch_size": BATCH_SIZE,
-    "grad_accum": GRAD_ACCUM, "effective_batch": BATCH_SIZE * GRAD_ACCUM,
     "freeze_scheme": ("linprobe: backbone (patch_embed/blocks/norm/cls_token/pos_embed) FROZEN all "
                       "epochs, head only." if FREEZE_ALL else
                       "Phase A: freeze whole backbone, train head; Phase B: unfreeze all, discriminative "
@@ -1035,14 +912,9 @@ recipe = {
     "augmentation": "color-jitter only (zeroshot)" if MODE == "zeroshot"
                     else "jitter@0.7 -> shear@0.8(±8°) -> noise@0.5(std=0.015)",
     "selection_metric": SELECT_ON, "selected_epoch": int(best_select_epoch),
-    "sampler": ("REAL-ONLY ablation: uniform RandomSampler over real, replacement=True, 100k draws/epoch (NO synth)"
-                if ARGS.no_synth else
-                "WeightedRandomSampler 50/50 synth/real, 100k draws/epoch"
+    "sampler": ("WeightedRandomSampler 50/50 synth/real, 100k draws/epoch"
                 if MODE in ("stage5", "linprobe") else "shuffle (natural distribution)"),
-    "no_synth_ablation": bool(ARGS.no_synth),
-    "data": ("REAL-ONLY: 30 manual (games 8-11) + PGN " + ",".join(str(g) for g in TRAIN_PGN_GAMES)
-             + " (NO synthetic data)") if ARGS.no_synth else
-            {"zeroshot": "full dataset_v1 synth (90/10 by-image split for synth-val selection)",
+    "data": {"zeroshot": "full dataset_v1 synth (90/10 by-image split for synth-val selection)",
              "stage3": "30 manual + game4 + game5 PGN (~323 frames real)",
              "stage5": "dataset_v1 synth + 30 manual + game4 + game5 PGN (combined)",
              "linprobe": "dataset_v1 synth + 30 manual + game4 + game5 PGN (combined, frozen backbone)"}[MODE],

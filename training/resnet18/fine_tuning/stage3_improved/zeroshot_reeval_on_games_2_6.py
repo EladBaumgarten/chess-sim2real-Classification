@@ -9,7 +9,7 @@ already reproduced s00's held-out 0.9085 exactly, validating the match.
 No training, no checkpoint writing. Output: stage3_improved/results/zeroshot_reeval_on_games_2_6.json
 """
 import sys, os, json
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 import numpy as np
 import torch
 from torch.utils.data import DataLoader

@@ -34,7 +34,7 @@ Usage:
 # %% [Cell 1 — Imports + args + seeds]
 import sys
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 
 import argparse
 import csv
@@ -90,7 +90,7 @@ def _parse_args():
                    help="Phase-B backbone LR (default 1e-5; ViT FT is fragile). Unused for linprobe.")
     p.add_argument("--weight_decay", type=float, default=0.05)
     p.add_argument("--zeroshot_ckpt", type=str,
-                   default="/home/eladbaum/chess_project/dino/checkpoints/dino_zeroshot/best_synth.pt",
+                   default="/home/eladbaum/chess_project/training/dino/checkpoints/dino_zeroshot/best_synth.pt",
                    help="source weights for --mode stage3.")
     # Split flags — defaults reproduce the original stage3/stage5 split byte-identically.
     p.add_argument("--train_pgn_games", type=str, default="4,5",
@@ -112,9 +112,6 @@ def _parse_args():
                    help="gradient accumulation steps. effective batch = batch_size * grad_accum. "
                         "Use to fit large effective batch on small GPUs (LayerNorm model -> numerically "
                         "equivalent to a single large batch).")
-    p.add_argument("--label_smoothing", type=float, default=0.0,
-                   help="label smoothing for the TRAINING CrossEntropyLoss only (eval/selection crit "
-                        "stays plain CE). 0.0 = byte-identical baseline; ablation uses 0.1.")
     args, _ = p.parse_known_args()
     return args
 
@@ -139,7 +136,6 @@ WARMUP_EPOCHS = ARGS.warmup_epochs if ARGS.warmup_epochs is not None else _DEFAU
 EARLY_STOP_PATIENCE = ARGS.patience if ARGS.patience is not None else _DEFAULTS["patience"]
 BATCH_SIZE = int(ARGS.batch_size)
 GRAD_ACCUM = max(1, int(ARGS.grad_accum))  # effective batch = BATCH_SIZE * GRAD_ACCUM
-LABEL_SMOOTHING = float(ARGS.label_smoothing)  # training-CE label smoothing (0.0 = baseline)
 LR_HEAD = float(ARGS.lr_head)
 LR_BACKBONE = float(ARGS.lr_backbone) if ARGS.lr_backbone is not None else _DEFAULTS["lr_backbone"]
 WEIGHT_DECAY = float(ARGS.weight_decay)
@@ -704,40 +700,7 @@ print("\033[92m✓ Cell 9 — Smoke test — OK\033[0m")
 
 
 # %% [Cell 10 — Optimizer + training loop]
-# ABLATION: label smoothing on the TRAINING criterion only (eval crit above stays plain CE).
-criterion = nn.CrossEntropyLoss(label_smoothing=LABEL_SMOOTHING)
-
-# === CONFIG-IDENTITY GATE vs dino_combindedGame6 (single variable = label_smoothing) ==========
-# Print + assert; abort before training if anything diverges. The one consequence of grad-accum that
-# must be proven equivalent to the baseline's batch-64 run is optimizer-steps-per-epoch.
-def _ceil_div(a, b):
-    return (a + b - 1) // b
-_BASELINE_BATCH = 64                                          # combined_game6 ran batch 64
-_eff_batch = BATCH_SIZE * GRAD_ACCUM
-_baseline_steps = _ceil_div(NUM_SAMPLES_PER_EPOCH, _BASELINE_BATCH)   # ceil(100000/64) = 1563
-_this_steps = _ceil_div(len(train_loader), GRAD_ACCUM)               # ceil(3125/2)   = 1563
-print("\n\033[96m=== CONFIG-IDENTITY GATE (vs dino_combindedGame6) ===\033[0m")
-print(f"  [1] train-CE label_smoothing = {criterion.label_smoothing}  (ablation variable; baseline 0.0)")
-print(f"      eval/selection crit = plain nn.CrossEntropyLoss() (label_smoothing=0.0) by construction")
-print(f"  [2] effective batch = {BATCH_SIZE} x {GRAD_ACCUM}accum = {_eff_batch}")
-print(f"  [3] optimizer steps/epoch: this_run={_this_steps}  baseline(batch64)={_baseline_steps}  "
-      f"(len(train_loader)={len(train_loader)})")
-print(f"  [4] grad-accum math: (loss/{GRAD_ACCUM}).backward(); step every {GRAD_ACCUM} micro-batches "
-      f"(+final remainder) -> gradient magnitude == batch {_eff_batch}, not {GRAD_ACCUM}x")
-print(f"  [5] combined path: WeightedRandomSampler 50/50 synth+real  (no_synth={ARGS.no_synth})")
-print(f"      data: train_pgn={TRAIN_PGN_GAMES}+manual(8-11), val={VAL_GAME}, test={HELD_OUT_GAMES}; "
-      f"epochs={NUM_EPOCHS}, patience={EARLY_STOP_PATIENCE}, lr_head={LR_HEAD}, lr_backbone={LR_BACKBONE}, "
-      f"seed={SEED}, select_on={SELECT_ON}")
-assert abs(criterion.label_smoothing - 0.1) < 1e-9, f"label_smoothing must be 0.1, got {criterion.label_smoothing}"
-assert _eff_batch == _BASELINE_BATCH, f"effective batch {_eff_batch} != baseline {_BASELINE_BATCH}"
-assert _this_steps == _baseline_steps, (
-    f"STOP: optimizer steps/epoch {_this_steps} != combined_game6 {_baseline_steps} -> CONFOUNDED. Aborting.")
-assert ARGS.no_synth is False, "label-smoothing ablation must use the COMBINED path (do NOT pass --no_synth)"
-assert TRAIN_PGN_GAMES == [4, 5, 6] and VAL_GAME == "game2" and HELD_OUT_GAMES == [7], "split mismatch vs baseline"
-assert NUM_EPOCHS == 20 and EARLY_STOP_PATIENCE == 0 and SEED == 42, "epochs/patience/seed mismatch vs baseline"
-assert abs(LR_HEAD - 1e-4) < 1e-12 and abs(LR_BACKBONE - 1e-5) < 1e-12, "LR mismatch vs baseline"
-print("  \033[92m✓ all config-identity assertions PASSED — single variable is label_smoothing.\033[0m")
-# ==============================================================================================
+criterion = nn.CrossEntropyLoss()
 
 
 def make_phaseA_optimizer(model):
@@ -1014,40 +977,41 @@ plot_confusion_matrix(confusion_matrix_np(preds, labels),
 print(f"\n=== HELD-OUT {_test_label} — DINOv2 {MODE} ===")
 print(f"  per-square={persq:.4f}  piece-only={piece:.4f}  empty={empty:.4f}")
 
-# === SELECTION-CONFOUND CHECK (only when the per-epoch game7 diagnostic ran) ==================
-# Requires best_game7_diag.pt, which only exists when --diag_game7 1. Skip cleanly otherwise so a
-# diag-off run does NOT crash before Cell 16 (recipe.json).
-if DIAG_GAME7 and os.path.exists(CKPT_BEST_GAME7_DIAG):
-    sel_g7_persq, sel_g7_piece, sel_epoch = persq, piece, int(best_ckpt["epoch"])
-    _diag = torch.load(CKPT_BEST_GAME7_DIAG, map_location=DEVICE, weights_only=False)
-    _m = build_model().to(DEVICE); _m.load_state_dict(_diag["model_state_dict"]); _m.eval()
-    _bp, _by = dino_eval_loader(_m, DIAG_GAME7_LOADER)
-    best_g7_persq, best_g7_piece, _ = verbatim_metrics(_bp, _by)
-    STAGE55_BASELINE = {"per_square": 0.9849, "piece_only": 0.9689}
-    confound = {
-        "note": "game7 used for DIAGNOSIS only; selection metric was game2_real_val (patience disabled).",
-        "selected_by": SELECT_ON,
-        "game2_selected": {"epoch": sel_epoch, "game7_per_square": sel_g7_persq,
-                           "game7_piece_only": sel_g7_piece},
-        "best_by_game7_diag": {"epoch": int(_diag["epoch"]), "game7_per_square": best_g7_persq,
-                               "game7_piece_only": best_g7_piece},
-        "stage5_5_baseline": STAGE55_BASELINE,
-        "selection_gap_per_square": best_g7_persq - sel_g7_persq,
-        "selection_gap_piece_only": best_g7_piece - sel_g7_piece,
-        "vs_stage5_5": {"selected_minus_baseline_persq": sel_g7_persq - STAGE55_BASELINE["per_square"],
-                        "best_minus_baseline_persq": best_g7_persq - STAGE55_BASELINE["per_square"]},
-    }
-    Path(f"{RESULTS_DIR}/selection_confound_game7.json").write_text(json.dumps(confound, indent=2))
-    print("\n=== SELECTION-CONFOUND CHECK (game7 diagnostic) ===")
-    print(f"  game2-SELECTED ckpt (ep{sel_epoch}): game7 per-sq={sel_g7_persq:.4f}  piece-only={sel_g7_piece:.4f}")
-    print(f"  best-by-GAME7 ckpt  (ep{int(_diag['epoch'])}): game7 per-sq={best_g7_persq:.4f}  piece-only={best_g7_piece:.4f}")
-    if confound["selection_gap_per_square"] > 0.01 or confound["selection_gap_piece_only"] > 0.01:
-        print("\033[93m  [FLAG] best-by-game7 substantially > game2-selected.\033[0m")
-    else:
-        print("  [ok] game2-selection and best-by-game7 agree (no material selection confound).")
+# === SELECTION-CONFOUND CHECK (dino_combindedGame6) ===========================
+# (a) game2-SELECTED checkpoint (best_real.pt, already loaded above) on game7 = persq/piece.
+# (b) best-by-game7 DIAGNOSTIC checkpoint on game7. Compare; flag if (b) >> (a).
+sel_g7_persq, sel_g7_piece, sel_epoch = persq, piece, int(best_ckpt["epoch"])
+_diag = torch.load(CKPT_BEST_GAME7_DIAG, map_location=DEVICE, weights_only=False)
+_m = build_model().to(DEVICE); _m.load_state_dict(_diag["model_state_dict"]); _m.eval()
+_bp, _by = dino_eval_loader(_m, DIAG_GAME7_LOADER)
+best_g7_persq, best_g7_piece, _ = verbatim_metrics(_bp, _by)
+STAGE55_BASELINE = {"per_square": 0.9849, "piece_only": 0.9689}
+confound = {
+    "note": "game7 used for DIAGNOSIS only; selection metric was game2_real_val (patience disabled).",
+    "selected_by": SELECT_ON,
+    "game2_selected": {"epoch": sel_epoch, "game7_per_square": sel_g7_persq,
+                       "game7_piece_only": sel_g7_piece},
+    "best_by_game7_diag": {"epoch": int(_diag["epoch"]), "game7_per_square": best_g7_persq,
+                           "game7_piece_only": best_g7_piece},
+    "stage5_5_baseline": STAGE55_BASELINE,
+    "selection_gap_per_square": best_g7_persq - sel_g7_persq,
+    "selection_gap_piece_only": best_g7_piece - sel_g7_piece,
+    "vs_stage5_5": {"selected_minus_baseline_persq": sel_g7_persq - STAGE55_BASELINE["per_square"],
+                    "best_minus_baseline_persq": best_g7_persq - STAGE55_BASELINE["per_square"]},
+}
+Path(f"{RESULTS_DIR}/selection_confound_game7.json").write_text(json.dumps(confound, indent=2))
+print("\n=== SELECTION-CONFOUND CHECK (game7 diagnostic) ===")
+print(f"  game2-SELECTED ckpt (ep{sel_epoch}): game7 per-sq={sel_g7_persq:.4f}  piece-only={sel_g7_piece:.4f}")
+print(f"  best-by-GAME7 ckpt  (ep{int(_diag['epoch'])}): game7 per-sq={best_g7_persq:.4f}  piece-only={best_g7_piece:.4f}")
+print(f"  stage5_5 baseline:            per-sq={STAGE55_BASELINE['per_square']:.4f}  piece-only={STAGE55_BASELINE['piece_only']:.4f}")
+print(f"  selection gap (best-by-game7 − game2-selected): per-sq={confound['selection_gap_per_square']:+.4f}  "
+      f"piece-only={confound['selection_gap_piece_only']:+.4f}")
+if confound["selection_gap_per_square"] > 0.01 or confound["selection_gap_piece_only"] > 0.01:
+    print("\033[93m  [FLAG] best-by-game7 substantially > game2-selected — the game2 selection metric "
+          "undercut the result; report the best-by-game7 number explicitly.\033[0m")
 else:
-    print("\n[skip] selection-confound check (per-epoch game7 diagnostic was off; no best_game7_diag.pt).")
-# ==============================================================================================
+    print("  [ok] game2-selection and best-by-game7 agree (no material selection confound).")
+# ==============================================================================
 
 
 # %% [Cell 16 — recipe.json (reportable) + summary]
@@ -1064,7 +1028,6 @@ recipe = {
     "epochs": NUM_EPOCHS, "warmup_phaseA_epochs": (None if FREEZE_ALL else WARMUP_EPOCHS),
     "early_stop_patience": EARLY_STOP_PATIENCE, "batch_size": BATCH_SIZE,
     "grad_accum": GRAD_ACCUM, "effective_batch": BATCH_SIZE * GRAD_ACCUM,
-    "label_smoothing_train_ce": LABEL_SMOOTHING, "ablation": "label_smoothing vs combined_game6 (train-CE only)",
     "freeze_scheme": ("linprobe: backbone (patch_embed/blocks/norm/cls_token/pos_embed) FROZEN all "
                       "epochs, head only." if FREEZE_ALL else
                       "Phase A: freeze whole backbone, train head; Phase B: unfreeze all, discriminative "

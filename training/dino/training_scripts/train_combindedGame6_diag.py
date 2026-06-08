@@ -34,7 +34,7 @@ Usage:
 # %% [Cell 1 — Imports + args + seeds]
 import sys
 sys.path.insert(0, "/home/eladbaum/chess_project")
-sys.path.insert(0, "/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+sys.path.insert(0, "/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 
 import argparse
 import csv
@@ -90,7 +90,7 @@ def _parse_args():
                    help="Phase-B backbone LR (default 1e-5; ViT FT is fragile). Unused for linprobe.")
     p.add_argument("--weight_decay", type=float, default=0.05)
     p.add_argument("--zeroshot_ckpt", type=str,
-                   default="/home/eladbaum/chess_project/dino/checkpoints/dino_zeroshot/best_synth.pt",
+                   default="/home/eladbaum/chess_project/training/dino/checkpoints/dino_zeroshot/best_synth.pt",
                    help="source weights for --mode stage3.")
     # Split flags — defaults reproduce the original stage3/stage5 split byte-identically.
     p.add_argument("--train_pgn_games", type=str, default="4,5",

@@ -1241,9 +1241,9 @@ plt.imshow(crop_np)
 plt.title(f"label={label} ({CLASS_NAMES[label]}), shape={crop_np.shape}")
 plt.axhline(50, color='r')
 plt.axvline(50, color='r')
-plt.savefig("/home/eladbaum/chess_project/ResNet18/Real_Only/plots/crop_geometry_check.png", dpi=120)
+plt.savefig("/home/eladbaum/chess_project/training/resnet18/Real_Only/plots/crop_geometry_check.png", dpi=120)
 plt.close()
-print("saved to /home/eladbaum/chess_project/ResNet18/Real_Only/plots/crop_geometry_check.png")
+print("saved to /home/eladbaum/chess_project/training/resnet18/Real_Only/plots/crop_geometry_check.png")
 # %%
 
 # %% [Cell 24 — check corner detection + cropping on a real test sample]
@@ -1276,7 +1276,7 @@ for ax, (cls, idx) in zip(axes, indices_to_show):
 
 plt.suptitle("Crop geometry check — red = (50,50), cyan dashed = (75,75)", y=1.02)
 plt.tight_layout()
-out_path = "/home/eladbaum/chess_project/ResNet18/Real_Only/plots/crop_geometry_check.png"
+out_path = "/home/eladbaum/chess_project/training/resnet18/Real_Only/plots/crop_geometry_check.png"
 plt.savefig(out_path, dpi=120, bbox_inches="tight")
 plt.close()
 print(f"saved to {out_path}")

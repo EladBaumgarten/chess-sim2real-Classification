@@ -14,9 +14,9 @@ import csv
 import json
 from pathlib import Path
 
-EXP_DIR = Path("/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_improved")
+EXP_DIR = Path("/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_improved")
 RESULTS_ROOT = EXP_DIR / "results"
-BASELINE_DIR = Path("/home/eladbaum/chess_project/ResNet18/fine_tuning/stage3_323/results")
+BASELINE_DIR = Path("/home/eladbaum/chess_project/training/resnet18/fine_tuning/stage3_323/results")
 RARE = ["wN", "wB", "wQ", "wK", "bN", "bB", "bQ", "bK"]
 EMPTY_TOL = 0.01
 

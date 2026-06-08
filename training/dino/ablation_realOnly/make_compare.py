@@ -7,9 +7,9 @@ pieces; per-square is reported but flagged as empty-dominated/misleading.
 import json, numpy as np
 
 NAMES = ["wP", "wR", "wN", "wB", "wQ", "wK", "bP", "bR", "bN", "bB", "bQ", "bK", "empty"]
-REALONLY = "/home/eladbaum/chess_project/dino/ablation_realOnly/results/predictions"
-COMBINED = "/home/eladbaum/chess_project/dino/results/dino_combindedGame6/predictions"
-OUT = "/home/eladbaum/chess_project/dino/ablation_realOnly/results/realonly_vs_combined_compare.json"
+REALONLY = "/home/eladbaum/chess_project/training/dino/ablation_realOnly/results/predictions"
+COMBINED = "/home/eladbaum/chess_project/training/dino/results/dino_combindedGame6/predictions"
+OUT = "/home/eladbaum/chess_project/training/dino/ablation_realOnly/results/realonly_vs_combined_compare.json"
 HIGHLIGHT = {"wB": 3, "bB": 9, "wQ": 4, "bQ": 10, "wK": 5, "bK": 11}  # bishops + royalty
 
 
