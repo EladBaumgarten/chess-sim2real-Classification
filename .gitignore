@@ -62,6 +62,7 @@ syn_data_generation/dataset_v1.5/
 syn_data_generation/dataset_v2/
 syn_data_generation/audit_dataset_v1_grid_dumps.txt
 syn_data_generation/audit_report.txt
+syn_data_generation/chess-sets
 
 # ---- preprocessing: only the core dataset_v1 pipeline is tracked ----
 preprocessing/game7_orientation_diagnostics.py
@@ -79,16 +80,10 @@ evaluation/view_orientations.py
 training/convnext/
 training/resnet18/
 
-# ---- training/dino: track only per-version training code + README ----
-training/dino/results/
-training/dino/plots/
-training/dino/eval_games_2_6.py
-training/dino/build_report.py
-training/dino/training_scripts/*
-!training/dino/training_scripts/train.py
-training/dino/dino_combined_Game6boosted/*
-!training/dino/dino_combined_Game6boosted/train_combindedGame6_diag.py
-training/dino/dino_realOnly/*
-!training/dino/dino_realOnly/train_realonly_ablation.py
-training/dino/dino_combined_Game6boosted_ablation_LabelSmoothing/*
-!training/dino/dino_combined_Game6boosted_ablation_LabelSmoothing/train_labelsmooth_ablation.py
+# ---- training/dino: track only the training code files + README (everything else local) ----
+training/dino/*
+!training/dino/README.md
+!training/dino/train.py
+!training/dino/train_combindedGame6_diag.py
+!training/dino/train_realonly_ablation.py
+!training/dino/train_labelsmooth_ablation.py
