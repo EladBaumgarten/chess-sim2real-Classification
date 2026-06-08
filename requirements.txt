@@ -4,7 +4,7 @@
 # For ONLY running the evaluation deliverable (predict_board), the smaller
 # submission/requirements.txt is sufficient.
 #
-# NOTE: the Blender synthetic-data generation (data_generation/) runs inside
+# NOTE: the Blender synthetic-data generation (syn_data_generation/) runs inside
 # Blender's bundled Python and uses `bpy`/`mathutils`, which are NOT pip-installable
 # here — they ship with Blender. They are intentionally omitted below.
 

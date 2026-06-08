@@ -15,7 +15,7 @@ a 13-class CNN/ViT (12 piece types + empty). The graded entry point is
 |--------|----------|
 | [`submission/`](submission/) | **Evaluation deliverable.** Self-contained `predict_board(image)` + the trained checkpoint, vendored DINOv2 backbone, and an `evaluate.py` harness. Runs standalone, offline. |
 | [`preprocessing/`](preprocessing/) | Shared library: corner detection / warp / crop (`verify_woelflein_crops.py`), FEN→label grid (`fen_to_grid.py`, `view_orientations.py`), the PyTorch `ChessSquareDataset`, manifest/corner-cache builders. |
-| [`data_generation/`](data_generation/) | Blender synthetic-dataset generation (`chess_position_api_v*.py`, `build_dataset_*.py`) and dataset audits. Runs inside Blender's Python. |
+| [`syn_data_generation/`](syn_data_generation/) | Blender synthetic-dataset generation (`chess_position_api_v*.py`, `build_dataset_*.py`) and dataset audits. Runs inside Blender's Python. |
 | [`training/`](training/) | Model training, one subfolder per architecture: [`dino/`](training/dino/) (DINOv2 ViT-S/14), [`convnext/`](training/convnext/) (ConvNeXt-Tiny), [`resnet18/`](training/resnet18/) (ResNet-18 baselines, fine-tuning and combined stages). Each has its own `README.md`, training scripts, results and plots. |
 | [`checkpoints/`](checkpoints/) | Catalog of all trained model runs (one subfolder per run) with metrics. Weight files are hosted externally (Drive) and gitignored; see [`checkpoints/README.md`](checkpoints/README.md). The graded weight is bundled in `submission/`. |
 | [`results/`](results/) | Diagnostic figures, metrics, confusion matrices, the written `report/`, and legacy training history. |
