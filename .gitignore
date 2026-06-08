@@ -48,9 +48,10 @@ Thumbs.db
 *.safetensors
 *.onnx
 
-# ---- KEEP the submission checkpoint (negate the ignore above) ----
-!submission/checkpoints/
-!submission/checkpoints/best_real.pt
+# ---- KEEP the graded checkpoint (negate the *.pt ignore above) ----
+# Single committed weight; evaluation/predict_board.py loads it from here.
+!checkpoints/dino_combined_Game6boosted/
+!checkpoints/dino_combined_Game6boosted/best_real.pt
 
 # ---- diagnostic/report-figure scripts: kept locally, not part of the submission ----
 analysis/
@@ -68,3 +69,8 @@ preprocessing/train_zero_shot.py
 
 # ---- results: regenerable diagnostic outputs (figures, metrics, report writeup) — kept local only ----
 results/
+
+# ---- evaluation/: track only what predict_board (the teacher's test) needs; the rest is local ----
+evaluation/evaluate.py
+evaluation/fen_to_grid.py
+evaluation/view_orientations.py

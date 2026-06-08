@@ -1,4 +1,4 @@
-# Project 2 — submission_model inference dependencies.
+# Project 2 — evaluation inference dependencies.
 # Tested with Python 3.11, torch 2.6.0+cu124, torchvision 0.21.0 (CPU works too).
 # Pinning is loose on purpose; the versions below are known-good lower bounds.
 torch>=2.1

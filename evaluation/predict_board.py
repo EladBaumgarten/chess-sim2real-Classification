@@ -56,7 +56,14 @@ EMPTY_CLASS = 12
 INPUT = 224                       # ViT-S/14 native (224/14 -> 16x16 = 256 tokens)
 SEED = 42                         # RANSAC determinism (matches training/eval path)
 CORNER_OOB_TOLERANCE = 8          # px a detected corner may fall outside the frame
-CKPT_PATH = os.path.join(_HERE, "checkpoints", "best_real.pt")
+# The trained weight lives once in the repo-level checkpoints/ catalog; resolve it
+# relative to this file. A local ./checkpoints/best_real.pt is accepted as a fallback
+# (e.g. if this folder is copied out on its own).
+_CKPT_CANDIDATES = [
+    os.path.join(_HERE, "..", "checkpoints", "dino_combined_Game6boosted", "best_real.pt"),
+    os.path.join(_HERE, "checkpoints", "best_real.pt"),
+]
+CKPT_PATH = next((p for p in _CKPT_CANDIDATES if os.path.exists(p)), _CKPT_CANDIDATES[0])
 
 _RESIZE = T.Resize((INPUT, INPUT), antialias=True)
 

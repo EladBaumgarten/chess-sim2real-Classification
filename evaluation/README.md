@@ -1,6 +1,7 @@
-# Project 2 — Chessboard State Prediction (submission model)
+# Project 2 — Chessboard State Prediction (evaluation deliverable)
 
-Self-contained implementation of the required evaluation function:
+Implementation of the required evaluation function. Loads the graded checkpoint from the
+repo-level `checkpoints/` folder (`../checkpoints/dino_combined_Game6boosted/best_real.pt`).
 
 ```python
 from predict_board import predict_board   # run from inside this folder
@@ -31,9 +32,9 @@ Output values are always in `[0, 12]`; `13`/`14` never appear (those are Project
 ## Model
 
 - **Architecture:** DINOv2 ViT-S/14 backbone (384-d CLS embedding) + `Linear(384, 13)` head (~22M params).
-- **Checkpoint:** `checkpoints/best_real.pt` — run `dino_combined_Game6boosted`, epoch 16,
-  combined synthetic + real training (dataset_v1 synthetic + real games 4/5/6 + manual
-  frames), selected on game2 real-validation accuracy.
+- **Checkpoint:** `../checkpoints/dino_combined_Game6boosted/best_real.pt` (committed to git) —
+  run `dino_combined_Game6boosted`, epoch 16, combined synthetic + real training (dataset_v1
+  synthetic + real games 4/5/6 + manual frames), selected on game2 real-validation accuracy.
 - **Preprocessing (exactly as trained):** detect corners → warp → 100×100 per-square
   crop → resize to 224×224 (bilinear, antialias) → ImageNet normalise
   (mean `[0.485,0.456,0.406]`, std `[0.229,0.224,0.225]`).
@@ -68,10 +69,10 @@ GPU is used automatically if available, otherwise CPU. The output tensor is alwa
 
 ## Offline / DINOv2 backbone — IMPORTANT
 
-**This folder is fully offline-capable.** The DINOv2 ViT-S/14 architecture is
-**vendored** under `dinov2_vendor/dinov2/` (Apache-2.0; see `dinov2_vendor/DINOV2_LICENSE`),
-so the model is built with **no network call** and all weights come from the bundled
-`checkpoints/best_real.pt`. No `torch.hub` download is needed.
+**Fully offline-capable.** The DINOv2 ViT-S/14 architecture is **vendored** under
+`dinov2_vendor/dinov2/` (Apache-2.0; see `dinov2_vendor/DINOV2_LICENSE`), so the model is
+built with **no network call** and all weights come from the committed
+`../checkpoints/dino_combined_Game6boosted/best_real.pt`. No `torch.hub` download is needed.
 
 > Fallback only: if the vendored import ever fails, the code falls back to
 > `torch.hub.load("facebookresearch/dinov2", "dinov2_vits14", pretrained=False)`,
@@ -80,15 +81,19 @@ so the model is built with **no network call** and all weights come from the bun
 
 ## Files
 
+Committed (needed for the grader's `predict_board` call):
+
 | File | Purpose |
 |------|---------|
 | `predict_board.py` | **Required entry point** — `predict_board(image)` + model + preprocessing |
 | `woelflein_crops.py` | Corner detection, warp, per-square crop (chesscog port, MIT) |
 | `dinov2_vendor/` | Vendored DINOv2 ViT-S/14 model code (offline architecture build) |
-| `checkpoints/best_real.pt` | Trained weights (`dino_combined_Game6boosted`) |
-| `fen_to_grid.py`, `view_orientations.py` | FEN → label grid (used by `evaluate.py` only) |
-| `evaluate.py` | Optional accuracy check against ground-truth FENs |
 | `requirements.txt` | Dependencies |
+
+Weights: `../checkpoints/dino_combined_Game6boosted/best_real.pt` (committed in the repo's `checkpoints/`).
+
+Local-only validation helpers (gitignored, kept on disk to reproduce the accuracy number):
+`evaluate.py` (accuracy check vs ground-truth FENs) + `fen_to_grid.py`, `view_orientations.py` (FEN → label grid).
 
 ## Reproduce the held-out accuracy
 

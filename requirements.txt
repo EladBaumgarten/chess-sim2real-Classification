@@ -1,8 +1,8 @@
 # Top-level dependencies for the whole project (training, preprocessing, analysis,
-# and the submission/ inference deliverable). Tested with Python 3.9-3.11.
+# and the evaluation/ inference deliverable). Tested with Python 3.9-3.11.
 #
 # For ONLY running the evaluation deliverable (predict_board), the smaller
-# submission/requirements.txt is sufficient.
+# evaluation/requirements.txt is sufficient.
 #
 # NOTE: the Blender synthetic-data generation (syn_data_generation/) runs inside
 # Blender's bundled Python and uses `bpy`/`mathutils`, which are NOT pip-installable
@@ -10,7 +10,7 @@
 
 torch>=2.1
 torchvision>=0.16
-timm>=0.9              # DINOv2 backbone fallback (vendored copy used by submission/)
+timm>=0.9              # DINOv2 backbone fallback (vendored copy used by evaluation/)
 numpy>=1.24,<2.0
 opencv-python>=4.8
 Pillow>=9.0

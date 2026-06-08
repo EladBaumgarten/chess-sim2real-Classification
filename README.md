@@ -7,17 +7,17 @@ synthetic renders and studying sim-to-real transfer to real chessboard photos.
 The pipeline localises the board with a classical corner detector (chesscog), warps
 it to a top-down view, crops each of the 64 squares, and classifies every square with
 a 13-class CNN/ViT (12 piece types + empty). The graded entry point is
-[`submission/predict_board.py`](submission/predict_board.py).
+[`evaluation/predict_board.py`](evaluation/predict_board.py).
 
 ## Repository layout
 
 | Folder | Contents |
 |--------|----------|
-| [`submission/`](submission/) | **Evaluation deliverable.** Self-contained `predict_board(image)` + the trained checkpoint, vendored DINOv2 backbone, and an `evaluate.py` harness. Runs standalone, offline. |
+| [`evaluation/`](evaluation/) | **Evaluation deliverable.** `predict_board(image)` + the vendored DINOv2 backbone. Loads the graded checkpoint from `checkpoints/` and runs offline. (A local `evaluate.py` validation harness is kept on disk, gitignored.) |
 | [`preprocessing/`](preprocessing/) | Shared library: corner detection / warp / crop (`verify_woelflein_crops.py`), FEN→label grid (`fen_to_grid.py`, `view_orientations.py`), the PyTorch `ChessSquareDataset`, manifest/corner-cache builders. |
 | [`syn_data_generation/`](syn_data_generation/) | Blender synthetic-dataset generation for **dataset_v1** (`build_dataset_v1.py`, `chess_position_api_v1_hdri.py`, `render_full_dataset_v1.sbatch`) and dataset audits. Runs inside Blender's Python. |
 | [`training/`](training/) | Model training, one subfolder per architecture: [`dino/`](training/dino/) (DINOv2 ViT-S/14), [`convnext/`](training/convnext/) (ConvNeXt-Tiny), [`resnet18/`](training/resnet18/) (ResNet-18 baselines, fine-tuning and combined stages). Each has its own `README.md`, training scripts, and per-run results. |
-| [`checkpoints/`](checkpoints/) | Catalog of all trained model runs (one subfolder per run) with metrics. Weight files are hosted externally (Drive) and gitignored; see [`checkpoints/README.md`](checkpoints/README.md). The graded weight is bundled in `submission/`. |
+| [`checkpoints/`](checkpoints/) | Catalog of all trained model runs (one subfolder per run) with metrics. Weight files are hosted externally (Drive) and gitignored; see [`checkpoints/README.md`](checkpoints/README.md). The one graded weight (`dino_combined_Game6boosted/best_real.pt`) **is** committed here; `evaluation/predict_board.py` loads it. |
 
 Per-run quantitative results (metrics, recipes, eval JSONs, training curves) live under each
 `training/<arch>/results/`. Top-level diagnostic figures are written to a local `results/` folder
@@ -32,13 +32,13 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-To run *only* the evaluation deliverable, `pip install -r submission/requirements.txt` is enough.
+To run *only* the evaluation deliverable, `pip install -r evaluation/requirements.txt` is enough.
 
 ## Inference (the evaluation entry point)
 
 ```python
 import numpy as np
-from submission.predict_board import predict_board   # or run from inside submission/
+from evaluation.predict_board import predict_board   # or run from inside evaluation/
 
 board = predict_board(image)   # image: (H, W, 3) RGB uint8 ndarray
 # board: torch.Tensor, shape (8, 8), dtype int64, on CPU, values in [0, 12]
@@ -47,11 +47,11 @@ board = predict_board(image)   # image: (H, W, 3) RGB uint8 ndarray
 
 Class encoding: `0–5` white P/R/N/B/Q/K, `6–11` black p/r/n/b/q/k, `12` empty.
 `predict_board` is deterministic, never raises (returns an all-empty board on hard
-failure), and runs offline — see [`submission/README.md`](submission/README.md) for details.
+failure), and runs offline — see [`evaluation/README.md`](evaluation/README.md) for details.
 
 ## Model provenance
 
-The shipped checkpoint is `submission/checkpoints/best_real.pt` — DINOv2 ViT-S/14 +
+The shipped checkpoint is `checkpoints/dino_combined_Game6boosted/best_real.pt` — DINOv2 ViT-S/14 +
 linear head, from the `dino_combined_Game6boosted` run (combined synthetic + real training,
 epoch 16, selected on game2 real-validation). On **game7** (held entirely out of
 training) it scores **per-square 0.9858 / piece-only 0.9708**.
@@ -59,7 +59,7 @@ training) it scores **per-square 0.9858 / piece-only 0.9708**.
 Reproduce that number:
 
 ```bash
-cd submission
+cd evaluation
 python evaluate.py --gt ../data/game7_per_frame/gt.csv \
                    --imgs ../data/game7_per_frame/images --view game7
 ```
@@ -76,7 +76,7 @@ python eval_games_2_6.py --run_name dino_combined
 ```
 
 Training reads the synthetic/real datasets and writes checkpoints under each run's
-`checkpoints/` folder (gitignored — only the submission checkpoint is committed).
+`checkpoints/` folder (gitignored — only the graded `dino_combined_Game6boosted` weight is committed).
 
 ## Datasets
 
@@ -93,4 +93,4 @@ run training and `evaluate.py`.
 Cropping pipeline follows Wölflein & Arandjelović, *Determining Chess Game State From
 an Image* (J. Imaging 2021) — [chesscog](https://github.com/georg-wolflein/chesscog)
 (MIT). The DINOv2 backbone is Meta's (Apache-2.0); a minimal copy is vendored under
-`submission/dinov2_vendor/`.
+`evaluation/dinov2_vendor/`.

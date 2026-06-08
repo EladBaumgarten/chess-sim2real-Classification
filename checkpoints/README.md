@@ -6,9 +6,9 @@ downloaded on demand:
 
 > **Weights (all runs):** _<add Google Drive link here>_
 
-The one exception is the graded checkpoint, which is bundled directly with the
-evaluation deliverable at [`../submission/checkpoints/best_real.pt`](../submission/checkpoints)
-so `predict_board` runs offline with no download.
+The one exception is the graded checkpoint
+[`dino_combined_Game6boosted/best_real.pt`](dino_combined_Game6boosted) — it **is** committed
+to git so `evaluation/predict_board.py` loads it offline with no download.
 
 The runs are catalogued below; download a run's `.pt` from the link above to
 reproduce its evaluation. Locally, weights are organised one folder per run —
