@@ -51,3 +51,6 @@ Thumbs.db
 # ---- KEEP the submission checkpoint (negate the ignore above) ----
 !submission/checkpoints/
 !submission/checkpoints/best_real.pt
+
+# ---- diagnostic/report-figure scripts: kept locally, not part of the submission ----
+analysis/
