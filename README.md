@@ -1,8 +1,7 @@
 # Synthetic-to-Real Chessboard State Recognition
 
-This project recognizes the full state of a chessboard from a single photo, predicting the piece (or empty square) at every position. It was built with a focus on **synthetic-to-real transfer**: training a classifier mostly on rendered synthetic boards and measuring how well it generalizes to real chessboard photos.
-
 ## Overview
+This project recognizes the full state of a chessboard from a single photo, predicting the piece (or empty square) at every position. It was built with a focus on **synthetic-to-real transfer**: training a classifier mostly on rendered synthetic boards and measuring how well it generalizes to real chessboard photos.
 
 Given one RGB image of a chessboard, the model returns an 8×8 grid naming the piece on
 each square (or *empty*). 
@@ -22,7 +21,7 @@ and evaluated on real chessboard photos under three main setups:
 
 We also compare backbones (DINOv2 vs. ConvNeXt vs. ResNet-18) and run ablations.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Project Goals
 
 The point we would like to explore is **data efficiency through synthetic data**:  
@@ -35,7 +34,7 @@ We explored how far synthetic data alone can go, and how cheaply a little real d
 - Compare backbones.
 - Deliver a single `predict_board(image)` that turns any board photo into a board state.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Repository Structure
 
 The repository is organised by function — one folder per stage of the pipeline:
@@ -50,11 +49,14 @@ The repository is organised by function — one folder per stage of the pipeline
 ```text
 chess_project/
 ├── README.md
+├── Final_Report.pdf         
 ├── requirements.txt
 ├── evaluation/
 │   ├── __init__.py
 │   ├── predict_board.py
 │   ├── woelflein_crops.py
+│   ├── fen_to_grid.py
+│   ├── view_orientations.py
 │   ├── dinov2_vendor/
 │   ├── evaluate.py
 │   └── requirements.txt
@@ -71,6 +73,7 @@ chess_project/
 │   └── render_full_dataset_v1.sbatch
 ├── training/dino/
 │   ├── train.py
+│   ├── train_combindedGame6_diag.py
 │   ├── train_realonly_ablation.py
 │   └── train_labelsmooth_ablation.py
 ├── checkpoints/
@@ -79,7 +82,7 @@ chess_project/
 └── demo/
     └── demo.py
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 
 ## Installation
 
@@ -95,7 +98,7 @@ pip install -r requirements.txt
 
 That's all you need to run inference, the demo, and `predict_board`. 
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Data
 
 The datasets are not stored in the repository because of their size; they are hosted on
@@ -108,7 +111,7 @@ Each dataset follows a simple layout — an `images/` folder and a `gt.csv` with
 `image_name, fen, view`. You do **not** need any of this to run `predict_board` or the demo
 on your own images; the trained weights already ship with the repository.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Inference & Pretrained Model
 
 The trained checkpoint — `checkpoints/dino_combined_Game6boosted/best_real.pt` (a DINOv2
@@ -126,7 +129,7 @@ board = predict_board(image)        # torch.Tensor, shape (8,8), int64, CPU, val
 
 Class ids: `0–5` white P/R/N/B/Q/K, `6–11` black p/r/n/b/q/k, `12` empty.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Training
 
 DINOv2 training lives in [`training/dino/`](training/dino/). One parametrized script covers
@@ -143,7 +146,7 @@ python train.py --mode combined   --run_name dino_combined     # joint synth + r
 > shared eval module kept local), not a bare clone. The committed repo ships the **inference**
 > path ready to run; training code is included for reference and reproduction.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Evaluation Function
 
 The required function lives in [`evaluation/predict_board.py`](evaluation/predict_board.py):
@@ -157,7 +160,7 @@ with image-based coordinates (`output[0,0]` is the top-left square of the image)
 in `[0, 12]`. It is deterministic and never raises — on a hard failure it returns an
 all-empty board. You can run it on **any** chessboard photo, including your own.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Demo
 
 Run the model on your own image (or a folder of images):
@@ -170,7 +173,7 @@ python demo/demo.py --input path/to/folder --save      # --save also writes a PN
 It prints the predicted board as an ASCII diagram and the raw `(8, 8)` tensor, and with
 `--save` writes a side-by-side `input vs. predicted board` PNG next to each image.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Reproducing Results
 
 The held-out result (real game *game7*, never seen in training) is reproduced with the
@@ -186,7 +189,7 @@ python evaluate.py --gt ../data/game7_per_frame/gt.csv \
 (Requires the `game7` frames from the Drive under `data/`.) To reproduce on your own images,
 just use the demo above with the shipped weights.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 ## Method Reference
 
 Board localisation follows Wölflein & Arandjelović, *Determining Chess Game State From an
@@ -198,4 +201,4 @@ The backbone is Meta's DINOv2 (Apache-2.0); a minimal copy is vendored under
 
 #### Elad Baumgarten, BSc
 #### Shmuel Avivi, BSc
-#### Yval Notkin, Bsc
+#### Yuval Notkin, BSc

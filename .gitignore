@@ -84,3 +84,27 @@ training/dino/*
 !training/dino/train_combindedGame6_diag.py
 !training/dino/train_realonly_ablation.py
 !training/dino/train_labelsmooth_ablation.py
+
+# local report material (not part of the repo)
+report_bundle/
+report_bundle2/
+
+# report figures (build artifacts, not source)
+report_plots/
+
+# ---- final submission document (kept local, not tracked) ----
+Projects Final Submission  (1).pdf
+
+# ---- report / presentation working files (kept local) ----
+# Word/PowerPoint sources, scratch briefs, Colab exports and the GPU keep-alive helper
+# are all working material. ONLY the exported Final_Report.pdf is tracked (negated below).
+*.docx
+*.pptx
+REFERENCES_AND_APPENDICES.md
+REPORT_WRITING_BRIEF.md
+colab_runs/
+gpu_keepalive.py
+gpu_keepalive.sbatch
+
+# ---- the submitted report PDF IS tracked ----
+!Final_Report.pdf
