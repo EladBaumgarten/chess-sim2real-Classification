@@ -95,16 +95,15 @@ report_plots/
 # ---- final submission document (kept local, not tracked) ----
 Projects Final Submission  (1).pdf
 
-# ---- report / presentation working files (kept local) ----
-# Word/PowerPoint sources, scratch briefs, Colab exports and the GPU keep-alive helper
-# are all working material. ONLY the exported Final_Report.pdf is tracked (negated below).
+# ---- report / presentation working files (kept local, not tracked) ----
+# Word/PowerPoint sources, scratch briefs, Colab exports, the GPU keep-alive helper
+# and the exported report PDF are all working material kept out of the repo.
 *.docx
 *.pptx
+*.pdf
+Final_Report.pdf
 REFERENCES_AND_APPENDICES.md
 REPORT_WRITING_BRIEF.md
 colab_runs/
 gpu_keepalive.py
 gpu_keepalive.sbatch
-
-# ---- the submitted report PDF IS tracked ----
-!Final_Report.pdf

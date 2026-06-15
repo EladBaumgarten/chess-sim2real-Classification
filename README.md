@@ -49,7 +49,6 @@ The repository is organised by function — one folder per stage of the pipeline
 ```text
 chess_project/
 ├── README.md
-├── Final_Report.pdf         
 ├── requirements.txt
 ├── evaluation/
 │   ├── __init__.py
