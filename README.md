@@ -43,7 +43,7 @@ The repository is organised by function — one folder per stage of the pipeline
 - **`preprocessing/`** - the shared data pipeline: board localisation, FEN → label-grid conversion, and the PyTorch per-square dataset.
 - **`syn_data_generation/`** - the Blender scripts that render the synthetic dataset (`dataset_v1`).
 - **`training/dino/`** - the DINOv2 training code: one parametrised script for the three transfer setups, plus dedicated scripts for the ablations.
-- **`checkpoints/`** - a catalogue of every training run; each run's `best_real.pt` is committed, including the shipped model `dino_combined_Game6boosted/best_real.pt`.
+- **`checkpoints/`** - a catalogue of every training run,each run's `best_real.pt` is committed, including the shipped model `dino_combined_Game6boosted/best_real.pt`.
 - **`demo/`** - a small script to run the model on your own images.
 
 ```text
@@ -100,7 +100,7 @@ That's all you need to run inference, the demo, and `predict_board`.
 ---
 ## Data
 
-The datasets are not stored in the repository because of their size; they are hosted on
+The datasets are not stored in the repository because of their size, they are hosted on
 Google Drive instead.
 
 > 📦 **Download link** — the synthetic renders and the real game frames can be found here:
@@ -108,7 +108,7 @@ Google Drive instead.
 
 Each dataset follows a simple layout — an `images/` folder and a `gt.csv` with columns
 `image_name, fen, view`. You do **not** need any of this to run `predict_board` or the demo
-on your own images; the trained weights already ship with the repository.
+on your own images, the trained weights already ship with the repository.
 
 ---
 ## Inference & Pretrained Model
@@ -132,7 +132,7 @@ Class ids: `0–5` white P/R/N/B/Q/K, `6–11` black p/r/n/b/q/k, `12` empty.
 ## Training
 
 DINOv2 training lives in [`training/dino/`](training/dino/). One parametrized script covers
-the three transfer setups; dedicated scripts cover the special runs:
+the three transfer setups, dedicated scripts cover the special runs:
 
 ```bash
 cd training/dino
@@ -141,9 +141,9 @@ python train.py --mode fine_tuned   --run_name dino_fine_tuned   # adapt on real
 python train.py --mode combined   --run_name dino_combined     # joint synth + real
 ```
 
-> ⚠️ Training needs the **full local setup** (datasets from the Drive under `data/`, plus the
-> shared eval module kept local), not a bare clone. The committed repo ships the **inference**
-> path ready to run; training code is included for reference and reproduction.
+> Training needs the **full local setup** (datasets from the Drive under `data/`, plus the
+> shared eval module kept local), not a bare clone. The committed repo ships the **inference**.
+
 
 ---
 ## Evaluation Function
@@ -193,7 +193,7 @@ just use the demo above with the shipped weights.
 
 Board localisation follows Wölflein & Arandjelović, *Determining Chess Game State From an
 Image* (J. Imaging 2021) — [chesscog](https://github.com/georg-wolflein/chesscog) (MIT).
-The backbone is Meta's DINOv2 (Apache-2.0); a minimal copy is vendored under
+The backbone is Meta's DINOv2 (Apache-2.0), a minimal copy is vendored under
 `evaluation/dinov2_vendor/`.
 
 ## Authors
